@@ -1,0 +1,259 @@
+// Dinheiro Contado - Database Schema
+// https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============ USERS & AUTH ============
+
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  name          String?
+  emailVerified DateTime?
+  image         String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  // Relations
+  accounts      Account[]
+  sessions      Session[]
+  bankAccounts  BankAccount[]
+  creditCards   CreditCard[]
+  statements    Statement[]
+  transactions  Transaction[]
+  categories    Category[]
+
+  @@map("users")
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@map("accounts")
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("sessions")
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+  @@map("verification_tokens")
+}
+
+// ============ FINANCIAL ENTITIES ============
+
+model BankAccount {
+  id          String   @id @default(cuid())
+  userId      String
+  bankCode    String   // e.g., "341" for Itau, "260" for Nubank
+  bankName    String   // e.g., "Nubank", "Inter", "BTG"
+  accountType String   // "checking", "savings"
+  nickname    String?  // User-defined name
+  lastFour    String?  // Last 4 digits (optional, for identification)
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  statements   Statement[]
+  transactions Transaction[]
+
+  @@map("bank_accounts")
+}
+
+model CreditCard {
+  id          String   @id @default(cuid())
+  userId      String
+  issuer      String   // "Nubank", "Inter", "BTG", "Santander"
+  cardName    String   // "Ultravioleta", "Gold", etc.
+  lastFour    String?  // Last 4 digits
+  nickname    String?  // User-defined name
+  closingDay  Int?     // Day of month when bill closes
+  dueDay      Int?     // Day of month when payment is due
+  creditLimit Decimal? @db.Decimal(12, 2)
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  statements   Statement[]
+  transactions Transaction[]
+
+  @@map("credit_cards")
+}
+
+// ============ STATEMENTS ============
+
+model Statement {
+  id             String   @id @default(cuid())
+  userId         String
+  bankAccountId  String?
+  creditCardId   String?
+
+  // File info
+  originalFileName String
+  storagePath      String    // S3/R2 path (encrypted)
+  fileHash         String    // SHA-256 for deduplication
+  fileSizeBytes    Int
+
+  // Statement metadata
+  statementType  StatementType
+  periodStart    DateTime
+  periodEnd      DateTime
+  totalAmount    Decimal?  @db.Decimal(12, 2) // For credit cards
+
+  // Processing status
+  status         ProcessingStatus @default(PENDING)
+  parserVersion  String?
+  parsedAt       DateTime?
+  errorMessage   String?
+
+  // Audit
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  bankAccount  BankAccount?  @relation(fields: [bankAccountId], references: [id])
+  creditCard   CreditCard?   @relation(fields: [creditCardId], references: [id])
+  transactions Transaction[]
+
+  @@unique([userId, fileHash]) // Prevent duplicate uploads
+  @@map("statements")
+}
+
+enum StatementType {
+  CREDIT_CARD
+  CHECKING_ACCOUNT
+  SAVINGS_ACCOUNT
+}
+
+enum ProcessingStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+  NEEDS_REVIEW
+}
+
+// ============ TRANSACTIONS ============
+
+model Transaction {
+  id            String   @id @default(cuid())
+  userId        String
+  statementId   String
+  bankAccountId String?
+  creditCardId  String?
+  categoryId    String?
+
+  // Transaction data
+  transactionDate DateTime
+  postingDate     DateTime?
+  description     String
+  originalDescription String  // Raw text from statement
+  amount          Decimal  @db.Decimal(12, 2)
+  type            TransactionType
+
+  // Credit card specific
+  installmentCurrent Int?    // e.g., 2 of 12
+  installmentTotal   Int?    // e.g., 12
+  isInternational    Boolean @default(false)
+
+  // Metadata
+  merchantName     String?
+  merchantCategory String?  // MCC code if available
+  notes            String?
+
+  // Deduplication
+  transactionHash String   // Hash of date+amount+description
+
+  // Audit
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  statement   Statement    @relation(fields: [statementId], references: [id], onDelete: Cascade)
+  bankAccount BankAccount? @relation(fields: [bankAccountId], references: [id])
+  creditCard  CreditCard?  @relation(fields: [creditCardId], references: [id])
+  category    Category?    @relation(fields: [categoryId], references: [id])
+
+  @@index([userId, transactionDate])
+  @@index([transactionHash])
+  @@map("transactions")
+}
+
+enum TransactionType {
+  CREDIT   // Money in
+  DEBIT    // Money out
+  TRANSFER // Between own accounts
+}
+
+// ============ CATEGORIES ============
+
+model Category {
+  id        String   @id @default(cuid())
+  userId    String?  // null = system default, userId = user custom
+  name      String
+  icon      String?
+  color     String?
+  parentId  String?  // For subcategories
+  isSystem  Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user         User?         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  parent       Category?     @relation("CategoryHierarchy", fields: [parentId], references: [id])
+  children     Category[]    @relation("CategoryHierarchy")
+  transactions Transaction[]
+
+  @@map("categories")
+}
+
+// ============ AUDIT ============
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  userId     String
+  action     String
+  resource   String
+  resourceId String?
+  metadata   Json?
+  ipAddress  String?
+  userAgent  String?
+  createdAt  DateTime @default(now())
+
+  @@index([userId, createdAt])
+  @@map("audit_logs")
+}
