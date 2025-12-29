@@ -7,49 +7,51 @@ Copy and paste this to start the next session:
 ## Prompt
 
 ```
-I'm working on Dinheiro Contado, a personal finance tracker for Brazilian bank statements.
+Continue working on Dinheiro Contado, a personal finance tracker for Brazilian bank statements.
 
-**Current state:**
-- MVP complete: auth, file upload, PDF parsing (5 banks), transactions, categories
-- 8,348 transactions imported, 4,576 auto-categorized (55%)
-- Dashboard shows only 30-day summary with basic progress bars
-- No charts, no time period selection
+**What's done (Phase 1 complete):**
+- MVP: auth, file upload, PDF parsing (5 banks), transactions, categories
+- 8,348 transactions imported, 55% auto-categorized
+- Analytics Dashboard with Recharts:
+  - TimePeriodSelector component (presets + custom range)
+  - SpendingByCategoryChart (pie/donut with drill-down)
+  - SpendingOverTimeChart (area/bar toggle, credits/debits)
+  - Category Detail page with trends and top merchants
+  - API endpoints: /api/analytics/spending-by-category, /api/analytics/spending-over-time, /api/analytics/category/[id]
 
 **Goal for this session:**
-Implement Phase 1 of the Analytics Dashboard (see docs/ROADMAP.md):
+Implement Phase 2: Insights & Comparisons (see docs/ROADMAP.md):
 
-1. **Install Recharts** for charting
-2. **Create TimePeriodSelector component** with presets:
-   - "Todo periodo" (all time)
-   - "Este ano" (this year)
-   - "Ultimos 6 meses" (last 6 months)
-   - "Este mes" (this month)
-   - "Mes passado" (last month)
-   - Custom date range
+1. **Period Comparison Component:**
+   - Side-by-side: this month vs last month
+   - This year vs last year
+   - Custom period comparison
+   - Show % change with up/down indicators
 
-3. **Upgrade "Gastos por Categoria" section:**
-   - Replace progress bars with a donut/pie chart
-   - Add time period selector
-   - Show percentage of total
-   - Click to drill-down into category
+2. **Top Spending Analysis:**
+   - Top 10 merchants (all time + by period)
+   - Top spending categories
+   - Biggest single transactions
+   - Average daily/weekly/monthly spending
 
-4. **Add "Gastos ao Longo do Tempo" chart:**
-   - Line/area chart showing monthly spending
-   - Configurable time range
-   - Show credits vs debits
+3. **Spending Heatmap:**
+   - Calendar heatmap (like GitHub contributions)
+   - Color intensity by spending amount
+   - Click to see day details
 
-5. **Create Category Detail Page** (`/dashboard/categories/[id]`):
-   - Category spending over time (line chart)
-   - Top merchants in this category
-   - All transactions table
+4. **Enhanced Summary Cards:**
+   - Average monthly spending
+   - Highest spending month
+   - Most common category
+   - Spending trend direction (up/down arrow)
 
 **Tech context:**
 - Next.js 15 + React 19 + TypeScript + Tailwind v4
 - PostgreSQL + Prisma
-- Existing components in src/components/dashboard/
-- API routes in src/app/api/
+- Recharts already installed
+- Existing chart components in src/components/dashboard/
 
-Start by reading docs/ROADMAP.md and the current dashboard at src/app/(dashboard)/dashboard/page.tsx
+Start by reading docs/ROADMAP.md for full Phase 2 details.
 ```
 
 ---
@@ -57,5 +59,5 @@ Start by reading docs/ROADMAP.md and the current dashboard at src/app/(dashboard
 ## Alternative: Quick Start Prompt
 
 ```
-Continue working on Dinheiro Contado. Read docs/ROADMAP.md and implement Phase 1: Analytics Dashboard with Recharts charts and time period selectors.
+Continue working on Dinheiro Contado. Read docs/ROADMAP.md and implement Phase 2: Insights & Comparisons with period comparison, top spending analysis, and spending heatmap.
 ```
