@@ -69,23 +69,29 @@ export default async function StatementsPage() {
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Data Upload
                 </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Acoes
+                </th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">
               {statements.map((statement) => (
                 <tr key={statement.id} className="hover:bg-gray-50">
                   <td className="px-6 py-4">
-                    <div className="flex items-center gap-3">
+                    <Link
+                      href={`/dashboard/statements/${statement.id}`}
+                      className="flex items-center gap-3 hover:text-emerald-600 transition"
+                    >
                       <span className="text-2xl">📄</span>
                       <div>
-                        <p className="font-medium text-gray-900">
+                        <p className="font-medium text-gray-900 hover:text-emerald-600">
                           {statement.originalFileName}
                         </p>
                         <p className="text-sm text-gray-500">
                           {(statement.fileSizeBytes / 1024).toFixed(1)} KB
                         </p>
                       </div>
-                    </div>
+                    </Link>
                   </td>
                   <td className="px-6 py-4">
                     <span
@@ -114,6 +120,14 @@ export default async function StatementsPage() {
                   </td>
                   <td className="px-6 py-4 text-sm text-gray-600">
                     {new Date(statement.createdAt).toLocaleDateString("pt-BR")}
+                  </td>
+                  <td className="px-6 py-4">
+                    <Link
+                      href={`/dashboard/statements/${statement.id}`}
+                      className="text-emerald-600 hover:text-emerald-700 font-medium"
+                    >
+                      Ver detalhes
+                    </Link>
                   </td>
                 </tr>
               ))}
