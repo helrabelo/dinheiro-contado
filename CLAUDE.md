@@ -13,6 +13,9 @@ Personal finance tracker for Brazilian bank statements and credit card bills.
 docker-compose up -d db    # Start PostgreSQL
 npm run dev                # Start Next.js on :3000
 
+# Start parser service:
+cd services/parser && uvicorn main:app --reload
+
 # To test without Python parser:
 echo 'USE_MOCK_PARSER="true"' >> .env
 ```
@@ -38,24 +41,60 @@ src/
     db/                     # Prisma client
     parser/                 # Parser service client
 
-services/parser/            # Python FastAPI parser (placeholder parsers)
+services/parser/            # Python FastAPI parser service
+  parsers/
+    nubank.py              # Nubank credit card (3 formats: 2017-2021, 2022-2024, 2025+)
+    btg.py                 # BTG Pactual credit card
+    inter.py               # Inter bank credit card
+    santander.py           # Santander credit card
+    mercadopago.py         # MercadoPago credit card
+
+scripts/
+  bulk-import.ts           # Import PDFs to user accounts
 ```
 
-## What's Built
+## What's Built (MVP Complete)
 - Full authentication flow (NextAuth v5)
 - Dashboard with 30-day spending summary
 - File upload with drag-drop, deduplication (SHA-256)
-- Parser service client with mock mode for testing
 - Transactions page with filtering (search, type, date, amount)
 - Statement detail page with parsed transactions
 - Categories CRUD with icons/colors
 - Bank accounts & credit cards CRUD
+- **Parser service with 5 credit card parsers**:
+  - Nubank (3 format versions: 2017-2021, 2022-2024, 2025+)
+  - BTG Pactual
+  - Inter
+  - Santander
+  - MercadoPago
+- Auto-detection with case-insensitive, multi-page fingerprinting
+- **100% parsing success rate** on 144 test PDFs (8,552 transactions)
+- **Auto-categorization on import** (200+ keyword patterns, 16 categories)
+  - 4,576 of 8,348 transactions categorized (55%)
 
-## What's Missing (Parsers)
-The `services/parser/` contains placeholder parsers. Port from `financial-analyzer`:
-- **BTG** (94.4% accuracy) - `/Users/helrabelo/code/personal/financial-analyzer/src/services/credit_cards/btg/v1.py`
-- **Nubank** (76.6%) - Triple format support (2017-2025)
-- **Inter** (50%) - GROSS validation needed
+## Next Priority: Analytics Dashboard
+See `docs/ROADMAP.md` for full details.
+
+### Phase 1: Charts & Visualizations
+1. Install Recharts for charting
+2. Time period selector (all time, year, 6 months, month, custom)
+3. Pie/donut chart for "Gastos por Categoria"
+4. Line chart for "Gastos ao Longo do Tempo"
+5. Category detail page with drill-down
+
+### Phase 2: Insights & Comparisons
+- Period comparison (this month vs last month)
+- Top spending analysis
+- Spending heatmap (calendar view)
+
+### Phase 3: Reports & Export
+- Monthly/annual PDF reports
+- CSV/JSON data export
+
+### Future Features
+- Budget tracking and alerts
+- Recurring transaction detection
+- User-defined categorization rules
 
 ## Environment Variables
 ```bash
@@ -71,3 +110,7 @@ USE_MOCK_PARSER="false"  # "true" to test without Python service
 
 ## Git Remote
 `git@github.com:helrabelo/dinheiro-contado.git`
+
+## Recent Fixes (2025-12-29)
+- Fixed Decimal serialization error when passing Prisma data to client components
+- Fixed date hydration mismatch by using UTC-safe date formatting

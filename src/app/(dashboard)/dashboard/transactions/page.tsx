@@ -62,7 +62,29 @@ export default async function TransactionsPage({
     ];
   }
 
-  const [transactions, stats] = await Promise.all([
+  // Date ranges for stats
+  const now = new Date();
+  const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+  const startOfYear = new Date(now.getFullYear(), 0, 1);
+
+  // Build filtered where clauses for year/month (respecting search filters)
+  const whereYear: Prisma.TransactionWhereInput = {
+    ...where,
+    transactionDate: { gte: startOfYear },
+  };
+  const whereMonth: Prisma.TransactionWhereInput = {
+    ...where,
+    transactionDate: { gte: startOfMonth },
+  };
+
+  const [
+    transactions,
+    filteredCount,
+    filteredDebits,
+    filteredCredits,
+    yearDebits,
+    monthDebits,
+  ] = await Promise.all([
     prisma.transaction.findMany({
       where,
       orderBy: { transactionDate: "desc" },
@@ -82,23 +104,44 @@ export default async function TransactionsPage({
       },
       take: 100,
     }),
+    // Count for filtered results
+    prisma.transaction.count({ where }),
+    // Sum of debits for filtered results
     prisma.transaction.aggregate({
-      where,
+      where: { ...where, type: "DEBIT" },
       _sum: { amount: true },
-      _count: true,
+    }),
+    // Sum of credits for filtered results
+    prisma.transaction.aggregate({
+      where: { ...where, type: "CREDIT" },
+      _sum: { amount: true },
+    }),
+    // Year debits (with search filter applied)
+    prisma.transaction.aggregate({
+      where: { ...whereYear, type: "DEBIT" },
+      _sum: { amount: true },
+    }),
+    // Month debits (with search filter applied)
+    prisma.transaction.aggregate({
+      where: { ...whereMonth, type: "DEBIT" },
+      _sum: { amount: true },
     }),
   ]);
 
-  // Calculate totals by type
-  const creditTotal =
-    transactions
-      .filter((t) => t.type === "CREDIT")
-      .reduce((sum, t) => sum + Number(t.amount), 0) || 0;
+  // Serialize transactions for client component (Decimal -> number, Date -> ISO string)
+  const serializedTransactions = transactions.map((tx) => ({
+    ...tx,
+    amount: Number(tx.amount),
+    transactionDate: tx.transactionDate.toISOString(),
+  }));
 
-  const debitTotal =
-    transactions
-      .filter((t) => t.type === "DEBIT")
-      .reduce((sum, t) => sum + Number(t.amount), 0) || 0;
+  // Calculate totals correctly
+  const totalDebits = Number(filteredDebits._sum.amount) || 0;
+  const totalCredits = Number(filteredCredits._sum.amount) || 0;
+  const filteredTotal = totalDebits - totalCredits; // Net spending (positive = spent more)
+
+  const lastYearTotal = Number(yearDebits._sum.amount) || 0;
+  const lastMonthTotal = Number(monthDebits._sum.amount) || 0;
 
   return (
     <div className="space-y-8">
@@ -107,7 +150,7 @@ export default async function TransactionsPage({
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Transacoes</h1>
           <p className="text-gray-600">
-            {stats._count} transacao(es) encontrada(s)
+            {filteredCount.toLocaleString("pt-BR")} transacao(es) encontrada(s)
           </p>
         </div>
         <Link
@@ -121,29 +164,27 @@ export default async function TransactionsPage({
       {/* Stats */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div className="bg-white rounded-xl p-4 border border-gray-200">
-          <p className="text-sm text-gray-600">Total Creditos</p>
-          <p className="text-2xl font-bold text-green-600">
-            R$ {creditTotal.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+          <p className="text-sm text-gray-600">Total Encontrado</p>
+          <p className="text-2xl font-bold text-gray-900">
+            R$ {filteredTotal.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
           </p>
+          <p className="text-xs text-gray-500 mt-1">{filteredCount.toLocaleString("pt-BR")} transacoes</p>
         </div>
         <div className="bg-white rounded-xl p-4 border border-gray-200">
-          <p className="text-sm text-gray-600">Total Debitos</p>
+          <p className="text-sm text-gray-600">Gastos {now.getFullYear()}</p>
           <p className="text-2xl font-bold text-red-600">
-            R$ {debitTotal.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+            R$ {lastYearTotal.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
           </p>
+          <p className="text-xs text-gray-500 mt-1">desde janeiro</p>
         </div>
         <div className="bg-white rounded-xl p-4 border border-gray-200">
-          <p className="text-sm text-gray-600">Saldo</p>
-          <p
-            className={`text-2xl font-bold ${
-              creditTotal - debitTotal >= 0 ? "text-green-600" : "text-red-600"
-            }`}
-          >
-            R${" "}
-            {(creditTotal - debitTotal).toLocaleString("pt-BR", {
-              minimumFractionDigits: 2,
-            })}
+          <p className="text-sm text-gray-600">
+            {now.toLocaleDateString("pt-BR", { month: "long" })}
           </p>
+          <p className="text-2xl font-bold text-orange-600">
+            R$ {lastMonthTotal.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+          </p>
+          <p className="text-xs text-gray-500 mt-1">mes atual</p>
         </div>
       </div>
 
@@ -177,7 +218,7 @@ export default async function TransactionsPage({
           </Link>
         </div>
       ) : (
-        <TransactionList transactions={transactions} />
+        <TransactionList transactions={serializedTransactions} />
       )}
     </div>
   );

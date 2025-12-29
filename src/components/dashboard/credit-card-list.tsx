@@ -2,7 +2,6 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { Decimal } from "@prisma/client/runtime/library";
 
 interface CreditCard {
   id: string;
@@ -12,7 +11,7 @@ interface CreditCard {
   nickname: string | null;
   closingDay: number | null;
   dueDay: number | null;
-  creditLimit: Decimal | null;
+  creditLimit: number | null; // Converted from Decimal
   isActive: boolean;
   _count: {
     statements: number;

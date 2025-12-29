@@ -21,6 +21,7 @@ export interface ParseResult {
   period_start?: string;
   period_end?: string;
   total_amount?: number;
+  card_last_four?: string;
   transactions: ParsedTransaction[];
   parser_version: string;
   error_message?: string;

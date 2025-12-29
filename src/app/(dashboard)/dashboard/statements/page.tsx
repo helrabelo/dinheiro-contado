@@ -2,15 +2,60 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import Link from "next/link";
 
+// Bank display names and icons
+const BANK_INFO: Record<string, { name: string; icon: string }> = {
+  nubank: { name: "Nubank", icon: "💜" },
+  inter: { name: "Inter", icon: "🧡" },
+  btg: { name: "BTG", icon: "💙" },
+  santander: { name: "Santander", icon: "❤️" },
+  itau: { name: "Itaú", icon: "🧡" },
+  bradesco: { name: "Bradesco", icon: "❤️" },
+  mercadopago: { name: "MercadoPago", icon: "💙" },
+};
+
+// Month names in Portuguese
+const MONTH_NAMES = [
+  "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
+  "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro",
+];
+
+function formatStatementTitle(statement: {
+  bank: string | null;
+  periodEnd: Date | null;
+  originalFileName: string;
+  cardLastFour: string | null;
+}): { title: string; icon: string } {
+  const bankInfo = statement.bank ? BANK_INFO[statement.bank] : null;
+
+  if (bankInfo && statement.periodEnd) {
+    const month = MONTH_NAMES[statement.periodEnd.getMonth()];
+    const year = statement.periodEnd.getFullYear();
+    const cardSuffix = statement.cardLastFour ? ` •${statement.cardLastFour}` : "";
+    return {
+      title: `${bankInfo.name} ${month} ${year}${cardSuffix}`,
+      icon: bankInfo.icon,
+    };
+  }
+
+  // Fallback to filename
+  return {
+    title: statement.originalFileName,
+    icon: "📄",
+  };
+}
+
 export default async function StatementsPage() {
   const session = await auth();
 
   const statements = await prisma.statement.findMany({
     where: { userId: session?.user?.id },
-    orderBy: { createdAt: "desc" },
+    orderBy: { periodEnd: "desc" }, // Order by period, newest first
     include: {
       creditCard: true,
       bankAccount: true,
+      _count: {
+        select: { transactions: true },
+      },
     },
   });
 
@@ -55,19 +100,19 @@ export default async function StatementsPage() {
             <thead className="bg-gray-50">
               <tr>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Arquivo
+                  Fatura
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Tipo
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Periodo
+                  Valor
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Transacoes
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Status
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Data Upload
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Acoes
@@ -75,62 +120,73 @@ export default async function StatementsPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">
-              {statements.map((statement) => (
-                <tr key={statement.id} className="hover:bg-gray-50">
-                  <td className="px-6 py-4">
-                    <Link
-                      href={`/dashboard/statements/${statement.id}`}
-                      className="flex items-center gap-3 hover:text-emerald-600 transition"
-                    >
-                      <span className="text-2xl">📄</span>
-                      <div>
-                        <p className="font-medium text-gray-900 hover:text-emerald-600">
-                          {statement.originalFileName}
-                        </p>
-                        <p className="text-sm text-gray-500">
-                          {(statement.fileSizeBytes / 1024).toFixed(1)} KB
-                        </p>
-                      </div>
-                    </Link>
-                  </td>
-                  <td className="px-6 py-4">
-                    <span
-                      className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                        statement.statementType === "CREDIT_CARD"
-                          ? "bg-purple-100 text-purple-800"
-                          : "bg-blue-100 text-blue-800"
-                      }`}
-                    >
-                      {statement.statementType === "CREDIT_CARD"
-                        ? "Cartao"
-                        : "Conta"}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 text-sm text-gray-600">
-                    {statement.periodStart && statement.periodEnd
-                      ? `${new Date(statement.periodStart).toLocaleDateString(
-                          "pt-BR"
-                        )} - ${new Date(statement.periodEnd).toLocaleDateString(
-                          "pt-BR"
-                        )}`
-                      : "-"}
-                  </td>
-                  <td className="px-6 py-4">
-                    <StatusBadge status={statement.status} />
-                  </td>
-                  <td className="px-6 py-4 text-sm text-gray-600">
-                    {new Date(statement.createdAt).toLocaleDateString("pt-BR")}
-                  </td>
-                  <td className="px-6 py-4">
-                    <Link
-                      href={`/dashboard/statements/${statement.id}`}
-                      className="text-emerald-600 hover:text-emerald-700 font-medium"
-                    >
-                      Ver detalhes
-                    </Link>
-                  </td>
-                </tr>
-              ))}
+              {statements.map((statement) => {
+                const { title, icon } = formatStatementTitle(statement);
+                return (
+                  <tr key={statement.id} className="hover:bg-gray-50">
+                    <td className="px-6 py-4">
+                      <Link
+                        href={`/dashboard/statements/${statement.id}`}
+                        className="flex items-center gap-3 hover:text-emerald-600 transition"
+                      >
+                        <span className="text-2xl">{icon}</span>
+                        <div>
+                          <p className="font-medium text-gray-900 hover:text-emerald-600">
+                            {title}
+                          </p>
+                          <p className="text-xs text-gray-500">
+                            {statement.periodStart && statement.periodEnd
+                              ? `${new Date(statement.periodStart).toLocaleDateString(
+                                  "pt-BR"
+                                )} - ${new Date(statement.periodEnd).toLocaleDateString(
+                                  "pt-BR"
+                                )}`
+                              : statement.originalFileName}
+                          </p>
+                        </div>
+                      </Link>
+                    </td>
+                    <td className="px-6 py-4">
+                      <span
+                        className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                          statement.statementType === "CREDIT_CARD"
+                            ? "bg-purple-100 text-purple-800"
+                            : "bg-blue-100 text-blue-800"
+                        }`}
+                      >
+                        {statement.statementType === "CREDIT_CARD"
+                          ? "Cartao"
+                          : "Conta"}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4">
+                      {statement.totalAmount ? (
+                        <span className="text-sm font-medium text-gray-900">
+                          R$ {Number(statement.totalAmount).toLocaleString("pt-BR", {
+                            minimumFractionDigits: 2,
+                          })}
+                        </span>
+                      ) : (
+                        <span className="text-sm text-gray-400">-</span>
+                      )}
+                    </td>
+                    <td className="px-6 py-4 text-sm text-gray-600">
+                      {statement._count.transactions}
+                    </td>
+                    <td className="px-6 py-4">
+                      <StatusBadge status={statement.status} />
+                    </td>
+                    <td className="px-6 py-4">
+                      <Link
+                        href={`/dashboard/statements/${statement.id}`}
+                        className="text-emerald-600 hover:text-emerald-700 font-medium"
+                      >
+                        Ver detalhes
+                      </Link>
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>

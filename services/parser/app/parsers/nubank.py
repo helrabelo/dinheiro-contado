@@ -26,8 +26,11 @@ from ..utils import (
 # Pre-compiled regex patterns for transaction matching
 # Pattern 1: NEW format (2025+) with card digits "DD MMM **** XXXX Description R$ Amount"
 TX_PATTERN_NEW = re.compile(
-    r"(\d{2})\s+([A-Z]{3})\s+[*]+\s*\d{4}\s+(.+?)\s+R\$\s*([-]?\d{1,3}(?:\.\d{3})*,\d{2})$"
+    r"(\d{2})\s+([A-Z]{3})\s+[*]+\s*(\d{4})\s+(.+?)\s+R\$\s*([-]?\d{1,3}(?:\.\d{3})*,\d{2})$"
 )
+
+# Pattern to extract card last 4 digits from header (e.g., "Cartão **** **** **** 1234")
+CARD_PATTERN = re.compile(r"[*]+\s*[*]+\s*[*]+\s*(\d{4})")
 
 # Pattern 2: OLD format (2021-2024) with R$ symbol "DD MMM Description R$ Amount"
 TX_PATTERN_OLD = re.compile(
@@ -53,6 +56,7 @@ class NubankParser(BaseParser):
         """Parse Nubank credit card PDF"""
         transactions: list[Transaction] = []
         path = Path(file_path)
+        card_last_four: Optional[str] = None
 
         try:
             with pdfplumber.open(file_path, password=password) as pdf:
@@ -60,6 +64,12 @@ class NubankParser(BaseParser):
 
                 if not pdf.pages:
                     return self._create_error_result("Empty PDF")
+
+                # Extract card last 4 from first page
+                first_page_text = pdf.pages[0].extract_text() or ""
+                card_match = CARD_PATTERN.search(first_page_text)
+                if card_match:
+                    card_last_four = card_match.group(1)
 
                 for page in pdf.pages:
                     text = page.extract_text() or ""
@@ -69,6 +79,7 @@ class NubankParser(BaseParser):
 
                         # Try patterns in order: NEW -> OLD -> VERY_OLD
                         match = TX_PATTERN_NEW.match(stripped)
+                        is_new_format = match is not None
                         if not match:
                             match = TX_PATTERN_OLD.match(stripped)
                         if not match:
@@ -77,10 +88,22 @@ class NubankParser(BaseParser):
                         if not match:
                             continue
 
-                        day = int(match.group(1))
-                        month_abbr = match.group(2)
-                        description = match.group(3).strip()
-                        amount_str = match.group(4)
+                        # Handle different capture groups based on pattern
+                        if is_new_format:
+                            # NEW format: (day, month, card_digits, description, amount)
+                            day = int(match.group(1))
+                            month_abbr = match.group(2)
+                            # Group 3 is card last 4 - also extract from transaction if not found earlier
+                            if not card_last_four:
+                                card_last_four = match.group(3)
+                            description = match.group(4).strip()
+                            amount_str = match.group(5)
+                        else:
+                            # OLD/VERY_OLD format: (day, month, description, amount)
+                            day = int(match.group(1))
+                            month_abbr = match.group(2)
+                            description = match.group(3).strip()
+                            amount_str = match.group(4)
 
                         # Cache lowercase for multiple checks
                         lower_desc = description.lower()
@@ -150,6 +173,7 @@ class NubankParser(BaseParser):
                 success=True,
                 bank=self.BANK_NAME,
                 statement_type="CREDIT_CARD",
+                card_last_four=card_last_four,
                 transactions=transactions,
                 parser_version=self.PARSER_VERSION,
                 total_amount=sum(t.amount for t in transactions) if transactions else None,

@@ -129,6 +129,10 @@ model Statement {
   fileHash         String    // SHA-256 for deduplication
   fileSizeBytes    Int
 
+  // Bank/issuer info (nubank, inter, btg, santander, itau, bradesco)
+  bank           String?
+  cardLastFour   String?  // Last 4 digits of card (from PDF parsing)
+
   // Statement metadata
   statementType  StatementType
   periodStart    DateTime

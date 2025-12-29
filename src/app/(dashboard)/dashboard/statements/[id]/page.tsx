@@ -48,9 +48,11 @@ export default async function StatementDetailPage({
     .filter((t) => t.type === "DEBIT")
     .reduce((sum, t) => sum + Number(t.amount), 0);
 
-  // Add statement info to transactions for display
-  const transactionsWithStatement = statement.transactions.map((tx) => ({
+  // Serialize transactions for client component (Decimal -> number, Date -> ISO string)
+  const serializedTransactions = statement.transactions.map((tx) => ({
     ...tx,
+    amount: Number(tx.amount),
+    transactionDate: tx.transactionDate.toISOString(),
     statement: {
       originalFileName: statement.originalFileName,
     },
@@ -202,7 +204,7 @@ export default async function StatementDetailPage({
 
       {/* Transactions */}
       {statement.transactions.length > 0 ? (
-        <TransactionList transactions={transactionsWithStatement} />
+        <TransactionList transactions={serializedTransactions} />
       ) : (
         statement.status === "COMPLETED" && (
           <div className="bg-white rounded-xl p-8 border border-gray-200 text-center">

@@ -1,6 +1,7 @@
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import Link from "next/link";
+import { CategorizationButton } from "@/components/dashboard/categorization-button";
 
 export default async function DashboardPage() {
   const session = await auth();
@@ -13,6 +14,8 @@ export default async function DashboardPage() {
     recentTransactions,
     monthlyStats,
     pendingStatements,
+    uncategorizedCount,
+    spendingByCategory,
   ] = await Promise.all([
     prisma.statement.count({ where: { userId: session?.user?.id } }),
     prisma.transaction.count({ where: { userId: session?.user?.id } }),
@@ -47,7 +50,41 @@ export default async function DashboardPage() {
       },
       take: 5,
     }),
+    // Uncategorized transactions
+    prisma.transaction.count({
+      where: {
+        userId: session?.user?.id,
+        categoryId: null,
+      },
+    }),
+    // Spending by category (top 8)
+    prisma.transaction.groupBy({
+      by: ["categoryId"],
+      where: {
+        userId: session?.user?.id,
+        type: "DEBIT",
+        categoryId: { not: null },
+        transactionDate: {
+          gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000),
+        },
+      },
+      _sum: { amount: true },
+      orderBy: { _sum: { amount: "desc" } },
+      take: 8,
+    }),
   ]);
+
+  // Get category names for the spending chart
+  const categoryIds = spendingByCategory
+    .map((s) => s.categoryId)
+    .filter((id): id is string => id !== null);
+
+  const categories = await prisma.category.findMany({
+    where: { id: { in: categoryIds } },
+    select: { id: true, name: true, icon: true, color: true },
+  });
+
+  const categoryLookup = new Map(categories.map((c) => [c.id, c]));
 
   // Calculate totals for the month
   const monthlyTransactions = await prisma.transaction.findMany({
@@ -78,22 +115,45 @@ export default async function DashboardPage() {
         </p>
       </div>
 
-      {/* Pending statements alert */}
-      {pendingStatements.length > 0 && (
-        <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4">
-          <div className="flex items-center gap-3">
-            <span className="text-2xl">...</span>
-            <div>
-              <p className="font-medium text-yellow-900">
-                {pendingStatements.length} extrato(s) aguardando processamento
-              </p>
-              <p className="text-sm text-yellow-700">
-                Inicie o servico de parsing para processar os extratos pendentes.
-              </p>
+      {/* Alerts */}
+      <div className="space-y-3">
+        {/* Pending statements alert */}
+        {pendingStatements.length > 0 && (
+          <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4">
+            <div className="flex items-center gap-3">
+              <span className="text-2xl">⏳</span>
+              <div>
+                <p className="font-medium text-yellow-900">
+                  {pendingStatements.length} extrato(s) aguardando processamento
+                </p>
+                <p className="text-sm text-yellow-700">
+                  Inicie o servico de parsing para processar os extratos pendentes.
+                </p>
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        )}
+
+        {/* Uncategorized transactions alert */}
+        {uncategorizedCount > 0 && (
+          <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <span className="text-2xl">🏷️</span>
+                <div>
+                  <p className="font-medium text-blue-900">
+                    {uncategorizedCount.toLocaleString("pt-BR")} transacoes sem categoria
+                  </p>
+                  <p className="text-sm text-blue-700">
+                    Categorize automaticamente usando padroes de texto.
+                  </p>
+                </div>
+              </div>
+              <CategorizationButton count={uncategorizedCount} />
+            </div>
+          </div>
+        )}
+      </div>
 
       {/* Monthly Summary */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -151,6 +211,60 @@ export default async function DashboardPage() {
           href="/dashboard/categories"
         />
       </div>
+
+      {/* Spending by Category */}
+      {spendingByCategory.length > 0 && (
+        <div className="bg-white rounded-xl p-6 border border-gray-200">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg font-semibold text-gray-900">
+              Gastos por Categoria (30 dias)
+            </h2>
+            <Link
+              href="/dashboard/categories"
+              className="text-sm text-emerald-600 hover:text-emerald-700 font-medium"
+            >
+              Gerenciar &rarr;
+            </Link>
+          </div>
+          <div className="space-y-3">
+            {spendingByCategory.map((item) => {
+              const category = item.categoryId
+                ? categoryLookup.get(item.categoryId)
+                : null;
+              const amount = Number(item._sum.amount) || 0;
+              const maxAmount = Number(spendingByCategory[0]?._sum?.amount) || 1;
+              const percentage = (amount / maxAmount) * 100;
+
+              return (
+                <div key={item.categoryId || "unknown"} className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-sm">
+                    {category?.icon || "📦"}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-sm font-medium text-gray-900 truncate">
+                        {category?.name || "Sem categoria"}
+                      </span>
+                      <span className="text-sm text-gray-600 ml-2">
+                        R$ {amount.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                      </span>
+                    </div>
+                    <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
+                      <div
+                        className="h-full rounded-full"
+                        style={{
+                          width: `${percentage}%`,
+                          backgroundColor: category?.color || "#10b981",
+                        }}
+                      />
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* Recent transactions */}
       {recentTransactions.length > 0 && (

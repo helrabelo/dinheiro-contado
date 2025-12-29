@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { parseStatement, checkParserHealth } from "@/lib/parser";
+import { buildCategoryCache, findCategory } from "@/lib/categorization";
 import crypto from "crypto";
 
 export async function POST(request: NextRequest) {
@@ -83,6 +84,7 @@ export async function POST(request: NextRequest) {
         storagePath,
         fileHash,
         fileSizeBytes: file.size,
+        bank: bank.toLowerCase(),
         statementType: statementType as
           | "CREDIT_CARD"
           | "CHECKING_ACCOUNT"
@@ -142,7 +144,14 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // Create transactions from parse result
+    // Build category cache for auto-categorization
+    const categoryCache = await buildCategoryCache(
+      session.user.id,
+      parseResult.transactions
+    );
+
+    // Create transactions from parse result with auto-categorization
+    let categorizedCount = 0;
     const transactionPromises = parseResult.transactions.map((tx) => {
       // Create a hash for deduplication
       const txHash = crypto
@@ -151,6 +160,12 @@ export async function POST(request: NextRequest) {
           `${tx.date}|${tx.amount}|${tx.original_description}|${statement.id}`
         )
         .digest("hex");
+
+      // Auto-categorize based on description
+      const match =
+        findCategory(tx.original_description) || findCategory(tx.description);
+      const categoryId = match ? categoryCache.get(match.category) : null;
+      if (categoryId) categorizedCount++;
 
       return prisma.transaction.create({
         data: {
@@ -165,11 +180,44 @@ export async function POST(request: NextRequest) {
           installmentTotal: tx.installment_total,
           isInternational: tx.is_international,
           transactionHash: txHash,
+          categoryId,
         },
       });
     });
 
     await Promise.all(transactionPromises);
+
+    // Find or create credit card if we have card info
+    let creditCardId: string | undefined;
+    if (
+      statementType === "CREDIT_CARD" &&
+      parseResult.card_last_four
+    ) {
+      // Look for existing card with same issuer + last4
+      const existingCard = await prisma.creditCard.findFirst({
+        where: {
+          userId: session.user.id,
+          issuer: bank.charAt(0).toUpperCase() + bank.slice(1), // Capitalize: nubank -> Nubank
+          lastFour: parseResult.card_last_four,
+        },
+      });
+
+      if (existingCard) {
+        creditCardId = existingCard.id;
+      } else {
+        // Create new credit card
+        const newCard = await prisma.creditCard.create({
+          data: {
+            userId: session.user.id,
+            issuer: bank.charAt(0).toUpperCase() + bank.slice(1),
+            cardName: bank.charAt(0).toUpperCase() + bank.slice(1), // Default name
+            lastFour: parseResult.card_last_four,
+            isActive: true,
+          },
+        });
+        creditCardId = newCard.id;
+      }
+    }
 
     // Update statement with success
     await prisma.statement.update({
@@ -179,6 +227,8 @@ export async function POST(request: NextRequest) {
         parserVersion: parseResult.parser_version,
         parsedAt: new Date(),
         totalAmount: parseResult.total_amount,
+        cardLastFour: parseResult.card_last_four,
+        creditCardId,
         periodStart: parseResult.period_start
           ? new Date(parseResult.period_start)
           : undefined,
@@ -188,12 +238,15 @@ export async function POST(request: NextRequest) {
       },
     });
 
+    const uncategorizedCount = parseResult.transactions.length - categorizedCount;
     return NextResponse.json({
       success: true,
       statementId: statement.id,
-      message: `Successfully parsed ${parseResult.transactions.length} transactions`,
+      message: `Successfully parsed ${parseResult.transactions.length} transactions (${categorizedCount} categorized)`,
       status: "COMPLETED",
       transactionCount: parseResult.transactions.length,
+      categorizedCount,
+      uncategorizedCount,
     });
   } catch (error) {
     console.error("Upload error:", error);

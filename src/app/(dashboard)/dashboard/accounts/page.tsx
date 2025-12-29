@@ -7,7 +7,7 @@ import { AddAccountForm } from "@/components/dashboard/add-account-form";
 export default async function AccountsPage() {
   const session = await auth();
 
-  const [bankAccounts, creditCards] = await Promise.all([
+  const [bankAccounts, creditCardsRaw] = await Promise.all([
     prisma.bankAccount.findMany({
       where: { userId: session?.user?.id },
       orderBy: { createdAt: "desc" },
@@ -27,6 +27,12 @@ export default async function AccountsPage() {
       },
     }),
   ]);
+
+  // Serialize credit cards for client component (Decimal -> number)
+  const creditCards = creditCardsRaw.map((card) => ({
+    ...card,
+    creditLimit: card.creditLimit ? Number(card.creditLimit) : null,
+  }));
 
   return (
     <div className="space-y-8">

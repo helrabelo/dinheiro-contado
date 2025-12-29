@@ -1,14 +1,13 @@
 "use client";
 
-import { Decimal } from "@prisma/client/runtime/library";
 import Link from "next/link";
 
 interface Transaction {
   id: string;
-  transactionDate: Date;
+  transactionDate: string; // ISO string for serialization
   description: string;
   originalDescription: string;
-  amount: Decimal;
+  amount: number; // Converted from Decimal
   type: string;
   installmentCurrent: number | null;
   installmentTotal: number | null;
@@ -28,11 +27,26 @@ interface TransactionListProps {
   transactions: Transaction[];
 }
 
+// Format date consistently to avoid hydration mismatch
+function formatDatePtBR(dateKey: string): string {
+  const [year, month, day] = dateKey.split("-").map(Number);
+  const weekdays = ["domingo", "segunda-feira", "terca-feira", "quarta-feira", "quinta-feira", "sexta-feira", "sabado"];
+  const months = ["janeiro", "fevereiro", "marco", "abril", "maio", "junho", "julho", "agosto", "setembro", "outubro", "novembro", "dezembro"];
+
+  // Create date at noon UTC to avoid timezone issues
+  const date = new Date(Date.UTC(year, month - 1, day, 12, 0, 0));
+  const weekday = weekdays[date.getUTCDay()];
+  const monthName = months[month - 1];
+
+  return `${weekday}, ${day} de ${monthName} de ${year}`;
+}
+
 export function TransactionList({ transactions }: TransactionListProps) {
-  // Group transactions by date
+  // Group transactions by date using ISO string date portion
   const grouped = transactions.reduce(
     (acc, tx) => {
-      const dateKey = new Date(tx.transactionDate).toISOString().split("T")[0];
+      // Extract YYYY-MM-DD from ISO string directly to avoid timezone issues
+      const dateKey = tx.transactionDate.split("T")[0];
       if (!acc[dateKey]) {
         acc[dateKey] = [];
       }
@@ -42,18 +56,14 @@ export function TransactionList({ transactions }: TransactionListProps) {
     {} as Record<string, Transaction[]>
   );
 
-  const sortedDates = Object.keys(grouped).sort(
-    (a, b) => new Date(b).getTime() - new Date(a).getTime()
-  );
+  const sortedDates = Object.keys(grouped).sort((a, b) => b.localeCompare(a));
 
   return (
     <div className="space-y-6">
       {sortedDates.map((dateKey) => {
         const dateTransactions = grouped[dateKey];
-        const date = new Date(dateKey);
         const dayTotal = dateTransactions.reduce((sum, tx) => {
-          const amount = Number(tx.amount);
-          return tx.type === "CREDIT" ? sum + amount : sum - amount;
+          return tx.type === "CREDIT" ? sum + tx.amount : sum - tx.amount;
         }, 0);
 
         return (
@@ -62,12 +72,7 @@ export function TransactionList({ transactions }: TransactionListProps) {
             <div className="px-6 py-3 bg-gray-50 border-b border-gray-200 flex justify-between items-center">
               <div className="flex items-center gap-2">
                 <span className="font-medium text-gray-900">
-                  {date.toLocaleDateString("pt-BR", {
-                    weekday: "long",
-                    day: "numeric",
-                    month: "long",
-                    year: "numeric",
-                  })}
+                  {formatDatePtBR(dateKey)}
                 </span>
                 <span className="text-sm text-gray-500">
                   ({dateTransactions.length}{" "}
@@ -98,7 +103,7 @@ export function TransactionList({ transactions }: TransactionListProps) {
 }
 
 function TransactionRow({ transaction: tx }: { transaction: Transaction }) {
-  const amount = Number(tx.amount);
+  const amount = tx.amount; // Already a number from serialization
   const isPositive = tx.type === "CREDIT";
 
   return (

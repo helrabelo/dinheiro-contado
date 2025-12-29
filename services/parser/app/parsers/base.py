@@ -26,6 +26,7 @@ class ParseResult(BaseModel):
     period_start: Optional[datetime] = None
     period_end: Optional[datetime] = None
     total_amount: Optional[float] = None
+    card_last_four: Optional[str] = None  # Last 4 digits of card
     transactions: list[Transaction] = []
     parser_version: str
     error_message: Optional[str] = None
