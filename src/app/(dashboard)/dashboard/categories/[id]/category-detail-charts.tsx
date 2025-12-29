@@ -93,7 +93,7 @@ export function CategoryDetailCharts({ categoryId, categoryColor }: Props) {
   }, [categoryId]);
 
   useEffect(() => {
-    const { startDate, endDate } = getDateRangeFromPeriod("year");
+    const { startDate, endDate } = getDateRangeFromPeriod("all");
     fetchData(startDate, endDate);
   }, [fetchData]);
 
@@ -140,7 +140,7 @@ export function CategoryDetailCharts({ categoryId, categoryColor }: Props) {
           </div>
           <TimePeriodSelector
             onPeriodChange={handlePeriodChange}
-            defaultPeriod="year"
+            defaultPeriod="all"
             persistInUrl={false}
             compact
           />

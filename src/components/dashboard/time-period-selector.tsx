@@ -74,7 +74,7 @@ interface TimePeriodSelectorProps {
 
 export function TimePeriodSelector({
   onPeriodChange,
-  defaultPeriod = "month",
+  defaultPeriod = "all",
   persistInUrl = true,
   compact = false,
 }: TimePeriodSelectorProps) {
