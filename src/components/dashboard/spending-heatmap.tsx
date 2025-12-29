@@ -160,14 +160,19 @@ export function SpendingHeatmap() {
       setHoveredDay(day.data);
       const rect = (e.target as HTMLElement).getBoundingClientRect();
       setTooltipPos({
-        x: rect.left + window.scrollX,
-        y: rect.top + window.scrollY - 70,
+        x: rect.left + rect.width / 2,
+        y: rect.top,
       });
     }
   };
 
   const handleMouseLeave = () => {
     setHoveredDay(null);
+  };
+
+  const formatDateShort = (dateStr: string) => {
+    const date = new Date(dateStr);
+    return date.toLocaleDateString("pt-BR", { day: "numeric", month: "short" });
   };
 
   const currentYear = new Date().getFullYear();
@@ -301,25 +306,22 @@ export function SpendingHeatmap() {
       {/* Tooltip */}
       {hoveredDay && (
         <div
-          className="fixed z-50 bg-gray-900 text-white text-xs rounded-lg px-3 py-2 shadow-lg pointer-events-none"
+          className="fixed z-[9999] bg-gray-900 text-white text-xs rounded-lg px-3 py-2 shadow-xl pointer-events-none whitespace-nowrap"
           style={{
             left: tooltipPos.x,
-            top: tooltipPos.y,
-            transform: "translateX(-50%)",
+            top: tooltipPos.y - 8,
+            transform: "translate(-50%, -100%)",
           }}
         >
-          <p className="font-medium">
-            {new Date(hoveredDay.date).toLocaleDateString("pt-BR", {
-              weekday: "long",
-              day: "numeric",
-              month: "long",
-            })}
+          <p className="font-semibold text-sm">
+            {formatDateShort(hoveredDay.date)}: {formatCurrency(hoveredDay.spending)}
           </p>
-          <p className="text-red-300">Gastos: {formatCurrency(hoveredDay.spending)}</p>
-          {hoveredDay.income > 0 && (
-            <p className="text-green-300">Creditos: {formatCurrency(hoveredDay.income)}</p>
+          {hoveredDay.count > 0 && (
+            <p className="text-gray-300 text-[10px] mt-0.5">{hoveredDay.count} transações</p>
           )}
-          <p className="text-gray-300">{hoveredDay.count} transacoes</p>
+          <div
+            className="absolute left-1/2 bottom-0 -translate-x-1/2 translate-y-full border-4 border-transparent border-t-gray-900"
+          />
         </div>
       )}
 

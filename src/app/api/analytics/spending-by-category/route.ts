@@ -23,8 +23,8 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    // Get spending grouped by category
-    const spendingByCategory = await prisma.transaction.groupBy({
+    // Get ALL spending grouped by category (no limit) to calculate true total
+    const allSpendingByCategory = await prisma.transaction.groupBy({
       by: ["categoryId"],
       where: {
         userId: session.user.id,
@@ -34,11 +34,26 @@ export async function GET(request: NextRequest) {
       _sum: { amount: true },
       _count: true,
       orderBy: { _sum: { amount: "desc" } },
-      take: limit,
     });
 
+    // Calculate TRUE total including all categories and uncategorized
+    const total = allSpendingByCategory.reduce(
+      (sum, item) => sum + Math.abs(Number(item._sum.amount || 0)),
+      0
+    );
+
+    // Separate uncategorized from categorized
+    const uncategorizedSpending = allSpendingByCategory.find((s) => s.categoryId === null);
+    const uncategorizedAmount = Math.abs(Number(uncategorizedSpending?._sum.amount || 0));
+    const uncategorizedCount = uncategorizedSpending?._count || 0;
+
+    // Get top N categorized spending (excluding uncategorized)
+    const categorizedSpending = allSpendingByCategory
+      .filter((item) => item.categoryId !== null)
+      .slice(0, limit);
+
     // Get category details
-    const categoryIds = spendingByCategory
+    const categoryIds = categorizedSpending
       .map((s) => s.categoryId)
       .filter((id): id is string => id !== null);
 
@@ -49,35 +64,22 @@ export async function GET(request: NextRequest) {
 
     const categoryLookup = new Map(categories.map((c) => [c.id, c]));
 
-    // Calculate total for percentages
-    // Note: DEBIT amounts are stored as negative values in DB, use Math.abs()
-    const total = spendingByCategory.reduce(
-      (sum, item) => sum + Math.abs(Number(item._sum.amount || 0)),
-      0
-    );
+    // Format response with categorized items
+    const data = categorizedSpending.map((item) => {
+      const category = categoryLookup.get(item.categoryId!);
+      const amount = Math.abs(Number(item._sum.amount || 0));
+      return {
+        categoryId: item.categoryId,
+        name: category?.name || "Desconhecido",
+        icon: category?.icon || "📦",
+        color: category?.color || "#6b7280",
+        amount,
+        count: item._count,
+        percentage: total > 0 ? (amount / total) * 100 : 0,
+      };
+    });
 
-    // Get uncategorized amount
-    const uncategorizedSpending = spendingByCategory.find((s) => s.categoryId === null);
-    const uncategorizedAmount = Math.abs(Number(uncategorizedSpending?._sum.amount || 0));
-
-    // Format response
-    const data = spendingByCategory
-      .filter((item) => item.categoryId !== null)
-      .map((item) => {
-        const category = categoryLookup.get(item.categoryId!);
-        const amount = Math.abs(Number(item._sum.amount || 0));
-        return {
-          categoryId: item.categoryId,
-          name: category?.name || "Desconhecido",
-          icon: category?.icon || "📦",
-          color: category?.color || "#6b7280",
-          amount,
-          count: item._count,
-          percentage: total > 0 ? (amount / total) * 100 : 0,
-        };
-      });
-
-    // Add uncategorized if exists
+    // Always add uncategorized at the end if exists
     if (uncategorizedAmount > 0) {
       data.push({
         categoryId: null,
@@ -85,7 +87,7 @@ export async function GET(request: NextRequest) {
         icon: "❓",
         color: "#9ca3af",
         amount: uncategorizedAmount,
-        count: uncategorizedSpending?._count || 0,
+        count: uncategorizedCount,
         percentage: total > 0 ? (uncategorizedAmount / total) * 100 : 0,
       });
     }

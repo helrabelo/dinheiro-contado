@@ -4,7 +4,6 @@ import Link from "next/link";
 import { CategorizationButton } from "@/components/dashboard/categorization-button";
 import { SpendingByCategoryChart } from "@/components/dashboard/spending-by-category-chart";
 import { SpendingOverTimeChart } from "@/components/dashboard/spending-over-time-chart";
-import { PeriodComparisonCard } from "@/components/dashboard/period-comparison-card";
 import { TopSpendingAnalysis } from "@/components/dashboard/top-spending-analysis";
 import { SpendingHeatmap } from "@/components/dashboard/spending-heatmap";
 import { EnhancedSummaryCards } from "@/components/dashboard/enhanced-summary-cards";
@@ -127,7 +126,15 @@ export default async function DashboardPage() {
                   </p>
                 </div>
               </div>
-              <CategorizationButton count={uncategorizedCount} />
+              <div className="flex items-center gap-2">
+                <Link
+                  href="/dashboard/categories/batch"
+                  className="px-4 py-2 text-blue-700 hover:bg-blue-100 text-sm font-medium rounded-lg transition"
+                >
+                  Avancado
+                </Link>
+                <CategorizationButton count={uncategorizedCount} />
+              </div>
             </div>
           </div>
         )}
@@ -161,9 +168,6 @@ export default async function DashboardPage() {
       {/* Charts Section */}
       {transactionsCount > 0 && (
         <>
-          {/* Period Comparison (Phase 2) */}
-          <PeriodComparisonCard />
-
           {/* Spending Over Time Chart */}
           <SpendingOverTimeChart />
 
@@ -208,9 +212,22 @@ export default async function DashboardPage() {
                   </div>
                   <div>
                     <p className="font-medium text-gray-900">{tx.description}</p>
-                    <p className="text-sm text-gray-500">
-                      {new Date(tx.transactionDate).toLocaleDateString("pt-BR")}
-                    </p>
+                    <div className="flex items-center gap-2 text-sm text-gray-500">
+                      <span>
+                        {new Date(tx.transactionDate).toLocaleDateString("pt-BR")}
+                      </span>
+                      {tx.category ? (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-gray-200 text-gray-700 rounded-full text-xs">
+                          <span>{tx.category.icon}</span>
+                          <span>{tx.category.name}</span>
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-gray-200 text-gray-500 rounded-full text-xs">
+                          <span>❓</span>
+                          <span>Sem categoria</span>
+                        </span>
+                      )}
+                    </div>
                   </div>
                 </div>
                 <p
@@ -234,7 +251,7 @@ export default async function DashboardPage() {
         <h2 className="text-lg font-semibold text-gray-900 mb-4">
           Acoes Rapidas
         </h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <Link
             href="/dashboard/statements/upload"
             className="flex items-center gap-4 p-4 bg-emerald-50 hover:bg-emerald-100 rounded-lg transition"
@@ -244,6 +261,18 @@ export default async function DashboardPage() {
               <p className="font-medium text-emerald-900">Enviar Extrato</p>
               <p className="text-sm text-emerald-700">
                 Faca upload de PDF ou CSV
+              </p>
+            </div>
+          </Link>
+          <Link
+            href="/dashboard/categories/batch"
+            className="flex items-center gap-4 p-4 bg-purple-50 hover:bg-purple-100 rounded-lg transition"
+          >
+            <span className="text-3xl">🏷️</span>
+            <div>
+              <p className="font-medium text-purple-900">Categorizar em Lote</p>
+              <p className="text-sm text-purple-700">
+                Buscar e categorizar rapidamente
               </p>
             </div>
           </Link>
