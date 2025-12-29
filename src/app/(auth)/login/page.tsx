@@ -22,12 +22,12 @@ export default function LoginPage() {
       });
 
       if (result?.error) {
-        setError("Email not found. Please try again.");
+        setError("Email nao encontrado. Tente novamente.");
       } else {
         router.push("/dashboard");
       }
     } catch {
-      setError("Something went wrong. Please try again.");
+      setError("Ocorreu um erro. Tente novamente.");
     } finally {
       setIsLoading(false);
     }

@@ -21,7 +21,7 @@ export async function POST(request: NextRequest) {
 
     if (!file || !bank || !statementType) {
       return NextResponse.json(
-        { error: "Missing required fields" },
+        { error: "Preencha todos os campos obrigatorios" },
         { status: 400 }
       );
     }
@@ -34,7 +34,7 @@ export async function POST(request: NextRequest) {
       !file.name.endsWith(".csv")
     ) {
       return NextResponse.json(
-        { error: "Invalid file type. Only PDF and CSV are supported." },
+        { error: "Tipo de arquivo invalido. Apenas PDF e CSV sao aceitos." },
         { status: 400 }
       );
     }
@@ -43,7 +43,7 @@ export async function POST(request: NextRequest) {
     const maxSize = 10 * 1024 * 1024;
     if (file.size > maxSize) {
       return NextResponse.json(
-        { error: "File too large. Maximum size is 10MB." },
+        { error: "Arquivo muito grande. Tamanho maximo: 10MB." },
         { status: 400 }
       );
     }
@@ -65,7 +65,7 @@ export async function POST(request: NextRequest) {
     if (existing) {
       return NextResponse.json(
         {
-          error: "This file has already been uploaded.",
+          error: "Este arquivo ja foi enviado anteriormente.",
           statementId: existing.id,
         },
         { status: 409 }
