@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
@@ -23,7 +24,10 @@ export function CategoryList({ categories, editable = false }: CategoryListProps
   const router = useRouter();
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
-  const handleDelete = async (id: string) => {
+  const handleDelete = async (id: string, e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+
     if (!confirm("Tem certeza que deseja excluir esta categoria?")) {
       return;
     }
@@ -51,9 +55,10 @@ export function CategoryList({ categories, editable = false }: CategoryListProps
   return (
     <div className="divide-y divide-gray-100">
       {categories.map((category) => (
-        <div
+        <Link
           key={category.id}
-          className="px-6 py-4 flex items-center justify-between hover:bg-gray-50"
+          href={`/dashboard/categories/${category.id}`}
+          className="px-6 py-4 flex items-center justify-between hover:bg-gray-50 transition"
         >
           <div className="flex items-center gap-4">
             <div
@@ -82,9 +87,10 @@ export function CategoryList({ categories, editable = false }: CategoryListProps
                 title={category.color}
               />
             )}
+            <span className="text-gray-400 mr-2">→</span>
             {editable && (
               <button
-                onClick={() => handleDelete(category.id)}
+                onClick={(e) => handleDelete(category.id, e)}
                 disabled={deletingId === category.id || category._count.transactions > 0}
                 className="px-3 py-1 text-sm text-red-600 hover:bg-red-50 rounded-lg transition disabled:opacity-50 disabled:cursor-not-allowed"
                 title={
@@ -97,7 +103,7 @@ export function CategoryList({ categories, editable = false }: CategoryListProps
               </button>
             )}
           </div>
-        </div>
+        </Link>
       ))}
     </div>
   );
