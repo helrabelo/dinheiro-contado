@@ -36,7 +36,7 @@ export function SpendingByCategoryChart() {
   const [data, setData] = useState<SpendingData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [currentPeriod, setCurrentPeriod] = useState<TimePeriod>("month");
+  const [currentPeriod, setCurrentPeriod] = useState<TimePeriod>("all");
 
   const fetchData = useCallback(async (startDate: Date, endDate: Date) => {
     setLoading(true);
@@ -63,7 +63,7 @@ export function SpendingByCategoryChart() {
   }, []);
 
   useEffect(() => {
-    const { startDate, endDate } = getDateRangeFromPeriod("month");
+    const { startDate, endDate } = getDateRangeFromPeriod("all");
     fetchData(startDate, endDate);
   }, [fetchData]);
 
@@ -116,7 +116,7 @@ export function SpendingByCategoryChart() {
         </h2>
         <TimePeriodSelector
           onPeriodChange={handlePeriodChange}
-          defaultPeriod="month"
+          defaultPeriod="all"
           persistInUrl={false}
           compact
         />
@@ -138,7 +138,7 @@ export function SpendingByCategoryChart() {
         </div>
         <TimePeriodSelector
           onPeriodChange={handlePeriodChange}
-          defaultPeriod="month"
+          defaultPeriod="all"
           persistInUrl={false}
           compact
         />
@@ -189,7 +189,7 @@ export function SpendingByCategoryChart() {
               href={
                 item.categoryId
                   ? `/dashboard/categories/${item.categoryId}`
-                  : "/dashboard/transactions?categoryId=null"
+                  : "/dashboard/transactions?categoryId=UNCATEGORIZED"
               }
               className="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-50 transition group"
             >

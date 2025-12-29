@@ -4,6 +4,10 @@ import Link from "next/link";
 import { CategorizationButton } from "@/components/dashboard/categorization-button";
 import { SpendingByCategoryChart } from "@/components/dashboard/spending-by-category-chart";
 import { SpendingOverTimeChart } from "@/components/dashboard/spending-over-time-chart";
+import { PeriodComparisonCard } from "@/components/dashboard/period-comparison-card";
+import { TopSpendingAnalysis } from "@/components/dashboard/top-spending-analysis";
+import { SpendingHeatmap } from "@/components/dashboard/spending-heatmap";
+import { EnhancedSummaryCards } from "@/components/dashboard/enhanced-summary-cards";
 
 export default async function DashboardPage() {
   const session = await auth();
@@ -129,40 +133,8 @@ export default async function DashboardPage() {
         )}
       </div>
 
-      {/* Monthly Summary */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <div className="bg-white rounded-xl p-6 border border-gray-200">
-          <p className="text-sm text-gray-600">Creditos (30 dias)</p>
-          <p className="text-2xl font-bold text-green-600 mt-1">
-            R$ {monthlyCredits.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
-          </p>
-        </div>
-        <div className="bg-white rounded-xl p-6 border border-gray-200">
-          <p className="text-sm text-gray-600">Debitos (30 dias)</p>
-          <p className="text-2xl font-bold text-red-600 mt-1">
-            R$ {monthlyDebits.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
-          </p>
-        </div>
-        <div className="bg-white rounded-xl p-6 border border-gray-200">
-          <p className="text-sm text-gray-600">Saldo (30 dias)</p>
-          <p
-            className={`text-2xl font-bold mt-1 ${
-              monthlyCredits - monthlyDebits >= 0 ? "text-green-600" : "text-red-600"
-            }`}
-          >
-            R${" "}
-            {(monthlyCredits - monthlyDebits).toLocaleString("pt-BR", {
-              minimumFractionDigits: 2,
-            })}
-          </p>
-        </div>
-        <div className="bg-white rounded-xl p-6 border border-gray-200">
-          <p className="text-sm text-gray-600">Transacoes (30 dias)</p>
-          <p className="text-2xl font-bold text-gray-900 mt-1">
-            {monthlyStats._count}
-          </p>
-        </div>
-      </div>
+      {/* Enhanced Summary Cards (Phase 2) */}
+      {transactionsCount > 0 && <EnhancedSummaryCards />}
 
       {/* Stats */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -189,11 +161,20 @@ export default async function DashboardPage() {
       {/* Charts Section */}
       {transactionsCount > 0 && (
         <>
+          {/* Period Comparison (Phase 2) */}
+          <PeriodComparisonCard />
+
           {/* Spending Over Time Chart */}
           <SpendingOverTimeChart />
 
           {/* Spending by Category Chart */}
           <SpendingByCategoryChart />
+
+          {/* Top Spending Analysis (Phase 2) */}
+          <TopSpendingAnalysis />
+
+          {/* Spending Heatmap (Phase 2) */}
+          <SpendingHeatmap />
         </>
       )}
 

@@ -50,7 +50,7 @@ export function SpendingOverTimeChart() {
   const [data, setData] = useState<SpendingOverTimeData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [currentPeriod, setCurrentPeriod] = useState<TimePeriod>("6months");
+  const [currentPeriod, setCurrentPeriod] = useState<TimePeriod>("all");
   const [chartType, setChartType] = useState<ChartType>("area");
   const [showCredits, setShowCredits] = useState(true);
   const [showDebits, setShowDebits] = useState(true);
@@ -87,7 +87,7 @@ export function SpendingOverTimeChart() {
   }, []);
 
   useEffect(() => {
-    const { startDate, endDate } = getDateRangeFromPeriod("6months");
+    const { startDate, endDate } = getDateRangeFromPeriod("all");
     fetchData(startDate, endDate);
   }, [fetchData]);
 
@@ -144,7 +144,7 @@ export function SpendingOverTimeChart() {
         </h2>
         <TimePeriodSelector
           onPeriodChange={handlePeriodChange}
-          defaultPeriod="6months"
+          defaultPeriod="all"
           persistInUrl={false}
           compact
         />
@@ -191,7 +191,7 @@ export function SpendingOverTimeChart() {
           </div>
           <TimePeriodSelector
             onPeriodChange={handlePeriodChange}
-            defaultPeriod="6months"
+            defaultPeriod="all"
             persistInUrl={false}
             compact
           />

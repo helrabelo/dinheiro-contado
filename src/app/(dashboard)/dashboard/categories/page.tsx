@@ -2,21 +2,30 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { CategoryList } from "@/components/dashboard/category-list";
 import { CategoryForm } from "@/components/dashboard/category-form";
+import Link from "next/link";
 
 export default async function CategoriesPage() {
   const session = await auth();
 
-  const categories = await prisma.category.findMany({
-    where: {
-      OR: [{ userId: session?.user?.id }, { isSystem: true }],
-    },
-    orderBy: [{ isSystem: "desc" }, { name: "asc" }],
-    include: {
-      _count: {
-        select: { transactions: true },
+  const [categories, uncategorizedCount] = await Promise.all([
+    prisma.category.findMany({
+      where: {
+        OR: [{ userId: session?.user?.id }, { isSystem: true }],
       },
-    },
-  });
+      orderBy: [{ isSystem: "desc" }, { name: "asc" }],
+      include: {
+        _count: {
+          select: { transactions: true },
+        },
+      },
+    }),
+    prisma.transaction.count({
+      where: {
+        userId: session?.user?.id || "",
+        categoryId: null,
+      },
+    }),
+  ]);
 
   const userCategories = categories.filter((c) => !c.isSystem);
   const systemCategories = categories.filter((c) => c.isSystem);
@@ -32,6 +41,27 @@ export default async function CategoriesPage() {
           </p>
         </div>
       </div>
+
+      {/* Batch Categorization CTA */}
+      {uncategorizedCount > 0 && (
+        <Link
+          href="/dashboard/categories/batch"
+          className="block bg-gradient-to-r from-blue-500 to-indigo-600 rounded-xl p-6 text-white hover:from-blue-600 hover:to-indigo-700 transition"
+        >
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-lg font-semibold flex items-center gap-2">
+                <span>🏷️</span> Categorizacao em Lote
+              </h2>
+              <p className="text-blue-100 mt-1">
+                {uncategorizedCount.toLocaleString("pt-BR")} transacoes sem categoria.
+                Categorize por padroes como &ldquo;IFD*&rdquo; para iFood.
+              </p>
+            </div>
+            <span className="text-2xl">→</span>
+          </div>
+        </Link>
+      )}
 
       {/* Add new category */}
       <div className="bg-white rounded-xl p-6 border border-gray-200">
