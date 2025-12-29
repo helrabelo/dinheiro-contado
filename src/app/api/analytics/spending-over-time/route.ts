@@ -73,7 +73,8 @@ export async function GET(request: NextRequest) {
       }
 
       const current = groupedData.get(key) || { credits: 0, debits: 0, net: 0, count: 0 };
-      const amount = Number(tx.amount);
+      // Note: DEBIT amounts are stored as negative values in DB, use Math.abs()
+      const amount = Math.abs(Number(tx.amount));
 
       if (tx.type === "CREDIT") {
         current.credits += amount;

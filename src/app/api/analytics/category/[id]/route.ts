@@ -35,7 +35,7 @@ export async function GET(
     });
 
     if (!category) {
-      return NextResponse.json({ error: "Category not found" }, { status: 404 });
+      return NextResponse.json({ error: "Categoria nao encontrada" }, { status: 404 });
     }
 
     // Get transactions in this category
@@ -56,6 +56,7 @@ export async function GET(
     });
 
     // Calculate totals
+    // Note: DEBIT amounts are stored as negative values in DB, use Math.abs()
     const totals = {
       credits: 0,
       debits: 0,
@@ -64,9 +65,9 @@ export async function GET(
 
     transactions.forEach((tx) => {
       if (tx.type === "CREDIT") {
-        totals.credits += Number(tx.amount);
+        totals.credits += Math.abs(Number(tx.amount));
       } else {
-        totals.debits += Number(tx.amount);
+        totals.debits += Math.abs(Number(tx.amount));
       }
     });
 
@@ -77,7 +78,7 @@ export async function GET(
       const date = new Date(tx.transactionDate);
       const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
       const current = monthlyData.get(key) || { credits: 0, debits: 0, count: 0 };
-      const amount = Number(tx.amount);
+      const amount = Math.abs(Number(tx.amount));
 
       if (tx.type === "CREDIT") {
         current.credits += amount;
@@ -116,7 +117,7 @@ export async function GET(
       const description = tx.description.toUpperCase();
       const current = merchantCounts.get(description) || { count: 0, total: 0 };
       current.count += 1;
-      current.total += Number(tx.amount);
+      current.total += Math.abs(Number(tx.amount));
       merchantCounts.set(description, current);
     });
 
@@ -133,7 +134,7 @@ export async function GET(
     const recentTransactions = transactions.slice(0, 50).map((tx) => ({
       id: tx.id,
       description: tx.description,
-      amount: Number(tx.amount),
+      amount: Math.abs(Number(tx.amount)),
       type: tx.type,
       date: tx.transactionDate.toISOString().split("T")[0],
     }));

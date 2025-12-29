@@ -50,21 +50,22 @@ export async function GET(request: NextRequest) {
     const categoryLookup = new Map(categories.map((c) => [c.id, c]));
 
     // Calculate total for percentages
+    // Note: DEBIT amounts are stored as negative values in DB, use Math.abs()
     const total = spendingByCategory.reduce(
-      (sum, item) => sum + Number(item._sum.amount || 0),
+      (sum, item) => sum + Math.abs(Number(item._sum.amount || 0)),
       0
     );
 
     // Get uncategorized amount
     const uncategorizedSpending = spendingByCategory.find((s) => s.categoryId === null);
-    const uncategorizedAmount = Number(uncategorizedSpending?._sum.amount || 0);
+    const uncategorizedAmount = Math.abs(Number(uncategorizedSpending?._sum.amount || 0));
 
     // Format response
     const data = spendingByCategory
       .filter((item) => item.categoryId !== null)
       .map((item) => {
         const category = categoryLookup.get(item.categoryId!);
-        const amount = Number(item._sum.amount || 0);
+        const amount = Math.abs(Number(item._sum.amount || 0));
         return {
           categoryId: item.categoryId,
           name: category?.name || "Desconhecido",
