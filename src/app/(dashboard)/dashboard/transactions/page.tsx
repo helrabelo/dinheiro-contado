@@ -145,13 +145,13 @@ export default async function TransactionsPage({
       where: { ...whereMonth, type: "DEBIT" },
       _sum: { amount: true },
     }),
-    // Get all categories for the filter dropdown
+    // Get all categories for the filter dropdown and inline editing
     prisma.category.findMany({
       where: {
         OR: [{ userId: session?.user?.id }, { isSystem: true }],
       },
       orderBy: { name: "asc" },
-      select: { id: true, name: true, icon: true },
+      select: { id: true, name: true, icon: true, color: true },
     }),
   ]);
 
@@ -270,7 +270,7 @@ export default async function TransactionsPage({
         </div>
       ) : (
         <>
-          <TransactionList transactions={serializedTransactions} />
+          <TransactionList transactions={serializedTransactions} categories={categories} />
 
           {/* Pagination */}
           {totalPages > 1 && (

@@ -37,6 +37,27 @@ interface Transaction {
   date: string;
 }
 
+interface TransactionHighlight {
+  id: string;
+  description: string;
+  amount: number;
+  date: string;
+}
+
+interface CommonTransaction {
+  description: string;
+  count: number;
+  totalAmount: number;
+  averageAmount: number;
+  lastDate: string;
+}
+
+interface TransactionInsights {
+  highest: TransactionHighlight | null;
+  lowest: TransactionHighlight | null;
+  mostCommon: CommonTransaction[];
+}
+
 interface CategoryData {
   category: {
     id: string;
@@ -53,6 +74,7 @@ interface CategoryData {
   monthlyTrend: MonthlyData[];
   topMerchants: Merchant[];
   recentTransactions: Transaction[];
+  transactionInsights: TransactionInsights;
   period: {
     startDate: string | null;
     endDate: string | null;
@@ -272,11 +294,98 @@ export function CategoryDetailCharts({ categoryId, categoryColor }: Props) {
         </div>
       )}
 
+      {/* Transaction Insights */}
+      {(data.transactionInsights.highest || data.transactionInsights.mostCommon.length > 0) && (
+        <div className="bg-white rounded-xl p-6 border border-gray-200">
+          <h2 className="text-lg font-semibold text-gray-900 mb-4">
+            Destaques das Transações
+          </h2>
+
+          {/* Highest and Lowest */}
+          {(data.transactionInsights.highest || data.transactionInsights.lowest) && (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+              {data.transactionInsights.highest && (
+                <div className="p-4 bg-red-50 border border-red-100 rounded-lg">
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="text-lg">📈</span>
+                    <span className="text-sm font-medium text-red-800">Maior Gasto</span>
+                  </div>
+                  <p className="text-xl font-bold text-red-700">
+                    {formatCurrency(data.transactionInsights.highest.amount)}
+                  </p>
+                  <p className="text-sm text-red-600 truncate mt-1">
+                    {data.transactionInsights.highest.description}
+                  </p>
+                  <p className="text-xs text-red-500 mt-1">
+                    {new Date(data.transactionInsights.highest.date).toLocaleDateString("pt-BR")}
+                  </p>
+                </div>
+              )}
+              {data.transactionInsights.lowest && (
+                <div className="p-4 bg-green-50 border border-green-100 rounded-lg">
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="text-lg">📉</span>
+                    <span className="text-sm font-medium text-green-800">Menor Gasto</span>
+                  </div>
+                  <p className="text-xl font-bold text-green-700">
+                    {formatCurrency(data.transactionInsights.lowest.amount)}
+                  </p>
+                  <p className="text-sm text-green-600 truncate mt-1">
+                    {data.transactionInsights.lowest.description}
+                  </p>
+                  <p className="text-xs text-green-500 mt-1">
+                    {new Date(data.transactionInsights.lowest.date).toLocaleDateString("pt-BR")}
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Most Common */}
+          {data.transactionInsights.mostCommon.length > 0 && (
+            <div>
+              <h3 className="text-sm font-medium text-gray-700 mb-3 flex items-center gap-2">
+                <span>🔄</span>
+                Transações Mais Frequentes
+              </h3>
+              <div className="space-y-2">
+                {data.transactionInsights.mostCommon.map((item, index) => (
+                  <div
+                    key={item.description}
+                    className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
+                  >
+                    <div className="flex items-center gap-3 flex-1 min-w-0">
+                      <span className="w-6 h-6 rounded-full bg-blue-100 text-blue-700 text-xs font-medium flex items-center justify-center">
+                        {item.count}×
+                      </span>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-gray-900 truncate">
+                          {item.description}
+                        </p>
+                        <p className="text-xs text-gray-500">
+                          Média: {formatCurrency(item.averageAmount)}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="text-right ml-3">
+                      <p className="text-sm font-medium text-gray-900">
+                        {formatCurrency(item.totalAmount)}
+                      </p>
+                      <p className="text-xs text-gray-500">total</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Recent Transactions */}
       {data.recentTransactions.length > 0 && (
         <div className="bg-white rounded-xl p-6 border border-gray-200">
           <h2 className="text-lg font-semibold text-gray-900 mb-4">
-            Transacoes Recentes
+            Transações Recentes
           </h2>
           <div className="space-y-2 max-h-96 overflow-y-auto">
             {data.recentTransactions.map((tx) => (

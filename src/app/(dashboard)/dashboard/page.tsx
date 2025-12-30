@@ -122,16 +122,22 @@ export default async function DashboardPage() {
                     {uncategorizedCount.toLocaleString("pt-BR")} transacoes sem categoria
                   </p>
                   <p className="text-sm text-blue-700">
-                    Categorize automaticamente usando padroes de texto.
+                    Categorize manualmente ou use padroes de texto.
                   </p>
                 </div>
               </div>
               <div className="flex items-center gap-2">
                 <Link
+                  href="/dashboard/transactions/uncategorized"
+                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition"
+                >
+                  Categorizar
+                </Link>
+                <Link
                   href="/dashboard/categories/batch"
                   className="px-4 py-2 text-blue-700 hover:bg-blue-100 text-sm font-medium rounded-lg transition"
                 >
-                  Avancado
+                  Por Padrao
                 </Link>
                 <CategorizationButton count={uncategorizedCount} />
               </div>

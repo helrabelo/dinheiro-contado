@@ -139,6 +139,56 @@ export async function GET(
       date: tx.transactionDate.toISOString().split("T")[0],
     }));
 
+    // Get highest and lowest transactions (debits only for spending categories)
+    const debitTransactions = transactions.filter((tx) => tx.type === "DEBIT");
+    const sortedByAmount = [...debitTransactions].sort(
+      (a, b) => Math.abs(Number(b.amount)) - Math.abs(Number(a.amount))
+    );
+
+    const highestTransaction = sortedByAmount[0]
+      ? {
+          id: sortedByAmount[0].id,
+          description: sortedByAmount[0].description,
+          amount: Math.abs(Number(sortedByAmount[0].amount)),
+          date: sortedByAmount[0].transactionDate.toISOString().split("T")[0],
+        }
+      : null;
+
+    const lowestTransaction = sortedByAmount[sortedByAmount.length - 1]
+      ? {
+          id: sortedByAmount[sortedByAmount.length - 1].id,
+          description: sortedByAmount[sortedByAmount.length - 1].description,
+          amount: Math.abs(Number(sortedByAmount[sortedByAmount.length - 1].amount)),
+          date: sortedByAmount[sortedByAmount.length - 1].transactionDate.toISOString().split("T")[0],
+        }
+      : null;
+
+    // Get most common transactions (by description pattern)
+    const descriptionCounts = new Map<string, { count: number; totalAmount: number; lastDate: string }>();
+    debitTransactions.forEach((tx) => {
+      const desc = tx.description.trim();
+      const current = descriptionCounts.get(desc) || { count: 0, totalAmount: 0, lastDate: "" };
+      current.count += 1;
+      current.totalAmount += Math.abs(Number(tx.amount));
+      const txDate = tx.transactionDate.toISOString().split("T")[0];
+      if (!current.lastDate || txDate > current.lastDate) {
+        current.lastDate = txDate;
+      }
+      descriptionCounts.set(desc, current);
+    });
+
+    const mostCommonTransactions = Array.from(descriptionCounts.entries())
+      .filter(([, data]) => data.count >= 2) // At least 2 occurrences to be "common"
+      .sort((a, b) => b[1].count - a[1].count)
+      .slice(0, 5)
+      .map(([description, data]) => ({
+        description,
+        count: data.count,
+        totalAmount: Math.round(data.totalAmount * 100) / 100,
+        averageAmount: Math.round((data.totalAmount / data.count) * 100) / 100,
+        lastDate: data.lastDate,
+      }));
+
     return NextResponse.json({
       category: {
         id: category.id,
@@ -155,6 +205,11 @@ export async function GET(
       monthlyTrend,
       topMerchants,
       recentTransactions,
+      transactionInsights: {
+        highest: highestTransaction,
+        lowest: lowestTransaction,
+        mostCommon: mostCommonTransactions,
+      },
       period: {
         startDate: startDate || null,
         endDate: endDate || null,
