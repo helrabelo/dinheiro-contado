@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db";
 import Link from "next/link";
 import { TransactionFilters } from "@/components/dashboard/transaction-filters";
 import { TransactionList } from "@/components/dashboard/transaction-list";
+import { UploadButton } from "@/components/dashboard/upload-button";
 import { Prisma } from "@prisma/client";
 
 const ITEMS_PER_PAGE = 50;
@@ -200,12 +201,7 @@ export default async function TransactionsPage({
             {filteredCount.toLocaleString("pt-BR")} transacao(es) encontrada(s)
           </p>
         </div>
-        <Link
-          href="/dashboard/statements/upload"
-          className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-medium rounded-lg transition"
-        >
-          + Novo Extrato
-        </Link>
+        <UploadButton />
       </div>
 
       {/* Stats */}
@@ -261,12 +257,11 @@ export default async function TransactionsPage({
               ? "Tente ajustar os filtros de busca."
               : "Envie um extrato para ver suas transacoes."}
           </p>
-          <Link
-            href="/dashboard/statements/upload"
-            className="inline-block mt-4 px-6 py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-medium rounded-lg transition"
-          >
-            Enviar Extrato
-          </Link>
+          <div className="mt-4">
+            <UploadButton className="px-6 py-3">
+              Enviar Extrato
+            </UploadButton>
+          </div>
         </div>
       ) : (
         <>

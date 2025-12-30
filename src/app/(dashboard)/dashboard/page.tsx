@@ -7,6 +7,8 @@ import { SpendingOverTimeChart } from "@/components/dashboard/spending-over-time
 import { TopSpendingAnalysis } from "@/components/dashboard/top-spending-analysis";
 import { SpendingHeatmap } from "@/components/dashboard/spending-heatmap";
 import { EnhancedSummaryCards } from "@/components/dashboard/enhanced-summary-cards";
+import { DashboardSection } from "@/components/dashboard/dashboard-section";
+import { UploadButton } from "@/components/dashboard/upload-button";
 
 export default async function DashboardPage() {
   const session = await auth();
@@ -147,121 +149,124 @@ export default async function DashboardPage() {
       </div>
 
       {/* Enhanced Summary Cards (Phase 2) */}
-      {transactionsCount > 0 && <EnhancedSummaryCards />}
+      {transactionsCount > 0 && (
+        <DashboardSection id="summary" title="Resumo" icon="📊">
+          <EnhancedSummaryCards />
+        </DashboardSection>
+      )}
 
       {/* Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <StatCard
-          title="Extratos"
-          value={statementsCount}
-          icon="📄"
-          href="/dashboard/statements"
-        />
-        <StatCard
-          title="Transacoes"
-          value={transactionsCount}
-          icon="💳"
-          href="/dashboard/transactions"
-        />
-        <StatCard
-          title="Categorias"
-          value={categoriesCount}
-          icon="🏷️"
-          href="/dashboard/categories"
-        />
-      </div>
+      <DashboardSection id="stats" title="Totais" icon="📈">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <StatCard
+            title="Extratos"
+            value={statementsCount}
+            icon="📄"
+            href="/dashboard/statements"
+          />
+          <StatCard
+            title="Transacoes"
+            value={transactionsCount}
+            icon="💳"
+            href="/dashboard/transactions"
+          />
+          <StatCard
+            title="Categorias"
+            value={categoriesCount}
+            icon="🏷️"
+            href="/dashboard/categories"
+          />
+        </div>
+      </DashboardSection>
 
       {/* Charts Section */}
       {transactionsCount > 0 && (
         <>
-          {/* Spending Over Time Chart */}
-          <SpendingOverTimeChart />
+          <DashboardSection id="spending-timeline" title="Gastos ao Longo do Tempo" icon="📉">
+            <SpendingOverTimeChart />
+          </DashboardSection>
 
-          {/* Spending by Category Chart */}
-          <SpendingByCategoryChart />
+          <DashboardSection id="spending-category" title="Gastos por Categoria" icon="🥧">
+            <SpendingByCategoryChart />
+          </DashboardSection>
 
-          {/* Top Spending Analysis (Phase 2) */}
-          <TopSpendingAnalysis />
+          <DashboardSection id="top-spending" title="Maiores Gastos" icon="🔥" defaultCollapsed>
+            <TopSpendingAnalysis />
+          </DashboardSection>
 
-          {/* Spending Heatmap (Phase 2) */}
-          <SpendingHeatmap />
+          <DashboardSection id="heatmap" title="Calendario de Gastos" icon="📅" defaultCollapsed>
+            <SpendingHeatmap />
+          </DashboardSection>
         </>
       )}
 
       {/* Recent transactions */}
       {recentTransactions.length > 0 && (
-        <div className="bg-white rounded-xl p-6 border border-gray-200">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-semibold text-gray-900">
-              Transacoes Recentes
-            </h2>
-            <Link
-              href="/dashboard/transactions"
-              className="text-sm text-emerald-600 hover:text-emerald-700 font-medium"
-            >
-              Ver todas &rarr;
-            </Link>
-          </div>
-          <div className="space-y-3">
-            {recentTransactions.map((tx) => (
-              <div
-                key={tx.id}
-                className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
+        <DashboardSection id="recent" title="Transacoes Recentes" icon="💳" badge={recentTransactions.length}>
+          <div className="bg-white rounded-xl p-6 border border-gray-200">
+            <div className="flex items-center justify-end mb-4">
+              <Link
+                href="/dashboard/transactions"
+                className="text-sm text-emerald-600 hover:text-emerald-700 font-medium"
               >
-                <div className="flex items-center gap-3">
-                  <div
-                    className={`w-10 h-10 rounded-full flex items-center justify-center ${
-                      tx.type === "CREDIT" ? "bg-green-100" : "bg-red-100"
-                    }`}
-                  >
-                    <span>{tx.category?.icon || (tx.type === "CREDIT" ? "+" : "-")}</span>
-                  </div>
-                  <div>
-                    <p className="font-medium text-gray-900">{tx.description}</p>
-                    <div className="flex items-center gap-2 text-sm text-gray-500">
-                      <span>
-                        {new Date(tx.transactionDate).toLocaleDateString("pt-BR")}
-                      </span>
-                      {tx.category ? (
-                        <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-gray-200 text-gray-700 rounded-full text-xs">
-                          <span>{tx.category.icon}</span>
-                          <span>{tx.category.name}</span>
+                Ver todas &rarr;
+              </Link>
+            </div>
+            <div className="space-y-3">
+              {recentTransactions.map((tx) => (
+                <div
+                  key={tx.id}
+                  className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
+                >
+                  <div className="flex items-center gap-3">
+                    <div
+                      className={`w-10 h-10 rounded-full flex items-center justify-center ${
+                        tx.type === "CREDIT" ? "bg-green-100" : "bg-red-100"
+                      }`}
+                    >
+                      <span>{tx.category?.icon || (tx.type === "CREDIT" ? "+" : "-")}</span>
+                    </div>
+                    <div>
+                      <p className="font-medium text-gray-900">{tx.description}</p>
+                      <div className="flex items-center gap-2 text-sm text-gray-500">
+                        <span>
+                          {new Date(tx.transactionDate).toLocaleDateString("pt-BR")}
                         </span>
-                      ) : (
-                        <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-gray-200 text-gray-500 rounded-full text-xs">
-                          <span>❓</span>
-                          <span>Sem categoria</span>
-                        </span>
-                      )}
+                        {tx.category ? (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-gray-200 text-gray-700 rounded-full text-xs">
+                            <span>{tx.category.icon}</span>
+                            <span>{tx.category.name}</span>
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-gray-200 text-gray-500 rounded-full text-xs">
+                            <span>❓</span>
+                            <span>Sem categoria</span>
+                          </span>
+                        )}
+                      </div>
                     </div>
                   </div>
+                  <p
+                    className={`font-medium ${
+                      tx.type === "CREDIT" ? "text-green-600" : "text-gray-900"
+                    }`}
+                  >
+                    {tx.type === "CREDIT" ? "+" : "-"} R${" "}
+                    {Math.abs(Number(tx.amount)).toLocaleString("pt-BR", {
+                      minimumFractionDigits: 2,
+                    })}
+                  </p>
                 </div>
-                <p
-                  className={`font-medium ${
-                    tx.type === "CREDIT" ? "text-green-600" : "text-gray-900"
-                  }`}
-                >
-                  {tx.type === "CREDIT" ? "+" : "-"} R${" "}
-                  {Math.abs(Number(tx.amount)).toLocaleString("pt-BR", {
-                    minimumFractionDigits: 2,
-                  })}
-                </p>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
-        </div>
+        </DashboardSection>
       )}
 
       {/* Quick actions */}
-      <div className="bg-white rounded-xl p-6 border border-gray-200">
-        <h2 className="text-lg font-semibold text-gray-900 mb-4">
-          Acoes Rapidas
-        </h2>
+      <DashboardSection id="quick-actions" title="Acoes Rapidas" icon="⚡">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <Link
-            href="/dashboard/statements/upload"
-            className="flex items-center gap-4 p-4 bg-emerald-50 hover:bg-emerald-100 rounded-lg transition"
-          >
+          <UploadButton variant="card">
             <span className="text-3xl">📤</span>
             <div>
               <p className="font-medium text-emerald-900">Enviar Extrato</p>
@@ -269,10 +274,10 @@ export default async function DashboardPage() {
                 Faca upload de PDF ou CSV
               </p>
             </div>
-          </Link>
+          </UploadButton>
           <Link
             href="/dashboard/categories/batch"
-            className="flex items-center gap-4 p-4 bg-purple-50 hover:bg-purple-100 rounded-lg transition"
+            className="flex items-center gap-4 p-4 bg-purple-50 hover:bg-purple-100 rounded-lg transition border border-purple-100"
           >
             <span className="text-3xl">🏷️</span>
             <div>
@@ -284,7 +289,7 @@ export default async function DashboardPage() {
           </Link>
           <Link
             href="/dashboard/transactions"
-            className="flex items-center gap-4 p-4 bg-blue-50 hover:bg-blue-100 rounded-lg transition"
+            className="flex items-center gap-4 p-4 bg-blue-50 hover:bg-blue-100 rounded-lg transition border border-blue-100"
           >
             <span className="text-3xl">💳</span>
             <div>
@@ -295,7 +300,7 @@ export default async function DashboardPage() {
             </div>
           </Link>
         </div>
-      </div>
+      </DashboardSection>
 
       {/* Empty state for new users */}
       {statementsCount === 0 && (
@@ -307,12 +312,11 @@ export default async function DashboardPage() {
           <p className="mt-2 text-gray-600">
             Comece enviando seu primeiro extrato bancario ou fatura de cartao.
           </p>
-          <Link
-            href="/dashboard/statements/upload"
-            className="inline-block mt-4 px-6 py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-medium rounded-lg transition"
-          >
-            Enviar Primeiro Extrato
-          </Link>
+          <div className="mt-4">
+            <UploadButton className="px-6 py-3">
+              Enviar Primeiro Extrato
+            </UploadButton>
+          </div>
         </div>
       )}
     </div>

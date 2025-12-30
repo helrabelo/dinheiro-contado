@@ -1,6 +1,7 @@
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import Link from "next/link";
+import { UploadButton } from "@/components/dashboard/upload-button";
 
 // Bank display names and icons
 const BANK_INFO: Record<string, { name: string; icon: string }> = {
@@ -69,12 +70,7 @@ export default async function StatementsPage() {
             {statements.length} extrato(s) enviado(s)
           </p>
         </div>
-        <Link
-          href="/dashboard/statements/upload"
-          className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-medium rounded-lg transition"
-        >
-          + Novo Extrato
-        </Link>
+        <UploadButton />
       </div>
 
       {/* Statements list */}
@@ -87,12 +83,11 @@ export default async function StatementsPage() {
           <p className="mt-2 text-gray-600">
             Envie seu primeiro extrato para comecar a analisar suas financas.
           </p>
-          <Link
-            href="/dashboard/statements/upload"
-            className="inline-block mt-4 px-6 py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-medium rounded-lg transition"
-          >
-            Enviar Primeiro Extrato
-          </Link>
+          <div className="mt-4">
+            <UploadButton className="px-6 py-3">
+              Enviar Primeiro Extrato
+            </UploadButton>
+          </div>
         </div>
       ) : (
         <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
