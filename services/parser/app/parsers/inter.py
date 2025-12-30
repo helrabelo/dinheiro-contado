@@ -34,6 +34,9 @@ CREDIT_PATTERN = re.compile(r"\+\s*R\$")
 # Pattern for card number lines to skip
 CARD_NUMBER_PATTERN = re.compile(r"\d{4}\*{4}\d{4}")
 
+# Pattern to extract installment info (e.g., "2/12", "PARCELA 2/12", "Parcela 02/12")
+INSTALLMENT_PATTERN = re.compile(r"(?:PARCELA\s+)?(\d{1,2})[/\\](\d{1,2})", re.IGNORECASE)
+
 SKIP_KEYWORDS = [
     "anuidade",
     "multa",
@@ -117,6 +120,14 @@ class InterParser(BaseParser):
                             tx_type = "DEBIT"
                             amount = normalize_expense_amount(amount)
 
+                        # Extract installment info from description
+                        installment_current = None
+                        installment_total = None
+                        installment_match = INSTALLMENT_PATTERN.search(description)
+                        if installment_match:
+                            installment_current = int(installment_match.group(1))
+                            installment_total = int(installment_match.group(2))
+
                         transactions.append(
                             Transaction(
                                 date=tx_date,
@@ -124,6 +135,8 @@ class InterParser(BaseParser):
                                 original_description=description,
                                 amount=amount,
                                 type=tx_type,
+                                installment_current=installment_current,
+                                installment_total=installment_total,
                             )
                         )
 

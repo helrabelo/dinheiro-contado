@@ -16,6 +16,7 @@ interface SearchParams {
   endDate?: string;
   minAmount?: string;
   maxAmount?: string;
+  hasInstallments?: string;
   statementId?: string;
   page?: string;
 }
@@ -72,6 +73,12 @@ export default async function TransactionsPage({
 
   if (params.statementId) {
     where.statementId = params.statementId;
+  }
+
+  if (params.hasInstallments === "YES") {
+    where.installmentTotal = { not: null };
+  } else if (params.hasInstallments === "NO") {
+    where.installmentTotal = null;
   }
 
   if (params.search) {
@@ -186,6 +193,7 @@ export default async function TransactionsPage({
     if (params.endDate) urlParams.set("endDate", params.endDate);
     if (params.minAmount) urlParams.set("minAmount", params.minAmount);
     if (params.maxAmount) urlParams.set("maxAmount", params.maxAmount);
+    if (params.hasInstallments && params.hasInstallments !== "ALL") urlParams.set("hasInstallments", params.hasInstallments);
     if (page > 1) urlParams.set("page", String(page));
     const queryString = urlParams.toString();
     return `/dashboard/transactions${queryString ? `?${queryString}` : ""}`;
@@ -242,6 +250,7 @@ export default async function TransactionsPage({
         endDate={params.endDate}
         minAmount={params.minAmount}
         maxAmount={params.maxAmount}
+        hasInstallments={params.hasInstallments}
         categories={categories}
       />
 
@@ -253,7 +262,7 @@ export default async function TransactionsPage({
             Nenhuma transacao encontrada
           </h3>
           <p className="mt-2 text-gray-600">
-            {params.search || params.type || params.startDate || params.categoryId
+            {params.search || params.type || params.startDate || params.categoryId || params.hasInstallments
               ? "Tente ajustar os filtros de busca."
               : "Envie um extrato para ver suas transacoes."}
           </p>

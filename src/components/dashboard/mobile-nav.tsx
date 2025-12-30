@@ -17,6 +17,7 @@ const navigation = [
   { name: "Dashboard", href: "/dashboard", icon: "📊" },
   { name: "Extratos", href: "/dashboard/statements", icon: "📄" },
   { name: "Transacoes", href: "/dashboard/transactions", icon: "💳" },
+  { name: "Parcelamentos", href: "/dashboard/installments", icon: "📅" },
   { name: "Categorias", href: "/dashboard/categories", icon: "🏷️" },
   { name: "Contas", href: "/dashboard/accounts", icon: "🏦" },
 ];

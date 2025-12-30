@@ -32,6 +32,9 @@ TX_PATTERN_NEW = re.compile(
 # Pattern to extract card last 4 digits from header (e.g., "Cartão **** **** **** 1234")
 CARD_PATTERN = re.compile(r"[*]+\s*[*]+\s*[*]+\s*(\d{4})")
 
+# Pattern to extract installment info (e.g., "2/12", "PARCELA 2/12", "Parcela 02/12")
+INSTALLMENT_PATTERN = re.compile(r"(?:PARCELA\s+)?(\d{1,2})[/\\](\d{1,2})", re.IGNORECASE)
+
 # Pattern 2: OLD format (2021-2024) with R$ symbol "DD MMM Description R$ Amount"
 TX_PATTERN_OLD = re.compile(
     r"(\d{2})\s+([A-Z]{3})\s+(.+?)\s+R\$\s*([-]?\d{1,3}(?:\.\d{3})*,\d{2})$"
@@ -139,6 +142,14 @@ class NubankParser(BaseParser):
                         # Handle discounts - make them positive (reduce amount owed)
                         is_discount = "desconto" in lower_desc
 
+                        # Extract installment info from description
+                        installment_current = None
+                        installment_total = None
+                        installment_match = INSTALLMENT_PATTERN.search(description)
+                        if installment_match:
+                            installment_current = int(installment_match.group(1))
+                            installment_total = int(installment_match.group(2))
+
                         month = MONTH_MAP_UPPER.get(month_abbr)
                         if not month:
                             continue
@@ -166,6 +177,8 @@ class NubankParser(BaseParser):
                                 original_description=description,
                                 amount=amount,
                                 type=tx_type,
+                                installment_current=installment_current,
+                                installment_total=installment_total,
                             )
                         )
 

@@ -27,6 +27,9 @@ TX_PATTERN = re.compile(
 )
 TOTAL_PATTERN = re.compile(r"Total\s+R\$\s+([\d.,]+)$")
 
+# Pattern to extract installment info (e.g., "2/12", "PARCELA 2/12", "Parcela 02/12")
+INSTALLMENT_PATTERN = re.compile(r"(?:PARCELA\s+)?(\d{1,2})[/\\](\d{1,2})", re.IGNORECASE)
+
 SKIP_KEYWORDS = ["pagamento", "tarifa", "encargo", "multa", "juros", "iof"]
 
 # Detection fingerprints (case-insensitive, checked across multiple pages)
@@ -81,6 +84,14 @@ class MercadoPagoParser(BaseParser):
                             amount = parse_brazilian_amount(amount_str)
                             amount = normalize_expense_amount(amount)
 
+                            # Extract installment info from description
+                            installment_current = None
+                            installment_total = None
+                            installment_match = INSTALLMENT_PATTERN.search(description)
+                            if installment_match:
+                                installment_current = int(installment_match.group(1))
+                                installment_total = int(installment_match.group(2))
+
                             transactions.append(
                                 Transaction(
                                     date=tx_date,
@@ -88,6 +99,8 @@ class MercadoPagoParser(BaseParser):
                                     original_description=description,
                                     amount=amount,
                                     type="DEBIT",
+                                    installment_current=installment_current,
+                                    installment_total=installment_total,
                                 )
                             )
                             continue

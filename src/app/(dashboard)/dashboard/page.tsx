@@ -136,7 +136,7 @@ export default async function DashboardPage() {
                   Categorizar
                 </Link>
                 <Link
-                  href="/dashboard/categories/batch"
+                  href="/dashboard/categories?tab=categorize"
                   className="px-4 py-2 text-blue-700 hover:bg-blue-100 text-sm font-medium rounded-lg transition"
                 >
                   Por Padrao
@@ -276,7 +276,7 @@ export default async function DashboardPage() {
             </div>
           </UploadButton>
           <Link
-            href="/dashboard/categories/batch"
+            href="/dashboard/categories?tab=categorize"
             className="flex items-center gap-4 p-4 bg-purple-50 hover:bg-purple-100 rounded-lg transition border border-purple-100"
           >
             <span className="text-3xl">🏷️</span>

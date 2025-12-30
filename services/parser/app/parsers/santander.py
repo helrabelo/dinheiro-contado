@@ -33,6 +33,10 @@ TX_PATTERN_SIMPLE = re.compile(
     r"(\d{2})/(\d{2})\s+([A-Z][A-Za-z0-9\s\-*/]+?)\s+([\d.]+,\d{2})"
 )
 
+# Pattern to extract installment info (e.g., "2/12", "PARCELA 2/12", "Parcela 02/12", "01/02")
+# This needs to be applied to the original line, not just description
+INSTALLMENT_PATTERN = re.compile(r"(?:PARCELA\s+)?(\d{1,2})[/\\](\d{1,2})(?:\s|$)", re.IGNORECASE)
+
 # Lines containing these are summary/header lines, not transactions
 SKIP_KEYWORDS = [
     "VALOR TOTAL",
@@ -135,6 +139,23 @@ class SantanderParser(BaseParser):
                             if not tx_date:
                                 continue
 
+                            # Extract installment info from the original line
+                            # Look for pattern like "01/02" that comes after the date
+                            installment_current = None
+                            installment_total = None
+                            # Find all installment-like patterns in the line
+                            installment_matches = INSTALLMENT_PATTERN.findall(stripped)
+                            # The date is DD/MM, so skip if the match looks like a date (day 1-31, month 1-12)
+                            for inst_match in installment_matches:
+                                current = int(inst_match[0])
+                                total = int(inst_match[1])
+                                # Installments usually have current <= total and total > 1
+                                # Skip if it looks like it could be the transaction date
+                                if current != day and total != month and current <= total and total > 1:
+                                    installment_current = current
+                                    installment_total = total
+                                    break
+
                             transactions.append(
                                 Transaction(
                                     date=tx_date,
@@ -142,6 +163,8 @@ class SantanderParser(BaseParser):
                                     original_description=description,
                                     amount=amount,
                                     type="DEBIT",
+                                    installment_current=installment_current,
+                                    installment_total=installment_total,
                                 )
                             )
 
@@ -190,6 +213,18 @@ class SantanderParser(BaseParser):
                         if not tx_date:
                             continue
 
+                        # Extract installment info from description
+                        installment_current = None
+                        installment_total = None
+                        installment_matches = INSTALLMENT_PATTERN.findall(description)
+                        for inst_match in installment_matches:
+                            current = int(inst_match[0])
+                            total = int(inst_match[1])
+                            if current <= total and total > 1:
+                                installment_current = current
+                                installment_total = total
+                                break
+
                         transactions.append(
                             Transaction(
                                 date=tx_date,
@@ -197,6 +232,8 @@ class SantanderParser(BaseParser):
                                 original_description=description,
                                 amount=amount,
                                 type="DEBIT",
+                                installment_current=installment_current,
+                                installment_total=installment_total,
                             )
                         )
 

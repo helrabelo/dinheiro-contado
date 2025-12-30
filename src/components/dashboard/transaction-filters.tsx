@@ -17,6 +17,7 @@ interface TransactionFiltersProps {
   endDate?: string;
   minAmount?: string;
   maxAmount?: string;
+  hasInstallments?: string;
   categories?: Category[];
 }
 
@@ -28,6 +29,7 @@ export function TransactionFilters({
   endDate = "",
   minAmount = "",
   maxAmount = "",
+  hasInstallments = "ALL",
   categories = [],
 }: TransactionFiltersProps) {
   const router = useRouter();
@@ -40,6 +42,7 @@ export function TransactionFilters({
   const [localEndDate, setLocalEndDate] = useState(endDate);
   const [localMinAmount, setLocalMinAmount] = useState(minAmount);
   const [localMaxAmount, setLocalMaxAmount] = useState(maxAmount);
+  const [localHasInstallments, setLocalHasInstallments] = useState(hasInstallments);
   const [isExpanded, setIsExpanded] = useState(false);
 
   const applyFilters = useCallback(() => {
@@ -69,6 +72,9 @@ export function TransactionFilters({
     if (localMaxAmount) params.set("maxAmount", localMaxAmount);
     else params.delete("maxAmount");
 
+    if (localHasInstallments && localHasInstallments !== "ALL") params.set("hasInstallments", localHasInstallments);
+    else params.delete("hasInstallments");
+
     router.push(`/dashboard/transactions?${params.toString()}`);
   }, [
     router,
@@ -80,6 +86,7 @@ export function TransactionFilters({
     localEndDate,
     localMinAmount,
     localMaxAmount,
+    localHasInstallments,
   ]);
 
   const clearFilters = useCallback(() => {
@@ -90,6 +97,7 @@ export function TransactionFilters({
     setLocalEndDate("");
     setLocalMinAmount("");
     setLocalMaxAmount("");
+    setLocalHasInstallments("ALL");
     router.push("/dashboard/transactions");
   }, [router]);
 
@@ -100,7 +108,8 @@ export function TransactionFilters({
     localStartDate ||
     localEndDate ||
     localMinAmount ||
-    localMaxAmount;
+    localMaxAmount ||
+    (localHasInstallments && localHasInstallments !== "ALL");
 
   return (
     <div className="bg-white rounded-xl p-4 border border-gray-200 space-y-4">
@@ -141,6 +150,17 @@ export function TransactionFilters({
                 {cat.icon} {cat.name}
               </option>
             ))}
+          </select>
+        </div>
+        <div className="w-full md:w-48">
+          <select
+            value={localHasInstallments}
+            onChange={(e) => setLocalHasInstallments(e.target.value)}
+            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none transition bg-white text-gray-900"
+          >
+            <option value="ALL">Parcelamentos</option>
+            <option value="YES">Com parcelas</option>
+            <option value="NO">Sem parcelas</option>
           </select>
         </div>
         <button

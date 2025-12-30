@@ -1,113 +1,91 @@
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
-import { CategoryList } from "@/components/dashboard/category-list";
-import { CategoryForm } from "@/components/dashboard/category-form";
-import Link from "next/link";
+import { CategoriesPageClient } from "./categories-page-client";
 
-export default async function CategoriesPage() {
+interface CategoriesPageProps {
+  searchParams: Promise<{ tab?: string }>;
+}
+
+export default async function CategoriesPage({ searchParams }: CategoriesPageProps) {
   const session = await auth();
+  const userId = session?.user?.id || "";
+  const params = await searchParams;
 
-  const [categories, uncategorizedCount] = await Promise.all([
+  // Fetch categories with transaction counts and total spent
+  const [categoriesWithStats, uncategorizedCount, patterns] = await Promise.all([
     prisma.category.findMany({
       where: {
-        OR: [{ userId: session?.user?.id }, { isSystem: true }],
+        OR: [{ userId }, { isSystem: true }],
       },
       orderBy: [{ isSystem: "desc" }, { name: "asc" }],
       include: {
         _count: {
           select: { transactions: true },
         },
+        transactions: {
+          where: {
+            userId,
+            type: "DEBIT",
+          },
+          select: {
+            amount: true,
+          },
+        },
       },
     }),
     prisma.transaction.count({
       where: {
-        userId: session?.user?.id || "",
+        userId,
         categoryId: null,
       },
     }),
+    // Fetch top patterns for the bulk tab
+    prisma.$queryRaw<Array<{ pattern: string; count: bigint }>>`
+      SELECT
+        SUBSTRING(description FROM '^([^*]+)') as pattern,
+        COUNT(*) as count
+      FROM "Transaction"
+      WHERE "userId" = ${userId}
+        AND "categoryId" IS NULL
+        AND description ~ '^[A-Z]{2,}[*]'
+      GROUP BY SUBSTRING(description FROM '^([^*]+)')
+      HAVING COUNT(*) >= 3
+      ORDER BY count DESC
+      LIMIT 20
+    `.catch(() => []),
   ]);
 
-  const userCategories = categories.filter((c) => !c.isSystem);
-  const systemCategories = categories.filter((c) => c.isSystem);
+  // Transform categories to include totalSpent
+  const categories = categoriesWithStats.map((cat) => ({
+    id: cat.id,
+    name: cat.name,
+    icon: cat.icon,
+    color: cat.color,
+    isSystem: cat.isSystem,
+    _count: cat._count,
+    totalSpent: cat.transactions.reduce((sum, tx) => sum + Math.abs(Number(tx.amount)), 0),
+  }));
+
+  // Calculate total spent across all categories
+  const totalSpent = categories.reduce((sum, cat) => sum + (cat.totalSpent || 0), 0);
+
+  // Transform patterns for the bulk tab
+  const formattedPatterns = patterns.map((p) => ({
+    pattern: p.pattern,
+    count: Number(p.count),
+    examples: [],
+  }));
+
+  // Get active tab from URL
+  const activeTab = params.tab === "categorize" ? "categorize" : "manage";
 
   return (
-    <div className="space-y-8">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Categorias</h1>
-          <p className="text-gray-600">
-            Organize suas transacoes por categoria
-          </p>
-        </div>
-      </div>
-
-      {/* Batch Categorization CTA */}
-      {uncategorizedCount > 0 && (
-        <Link
-          href="/dashboard/categories/batch"
-          className="block bg-gradient-to-r from-blue-500 to-indigo-600 rounded-xl p-6 text-white hover:from-blue-600 hover:to-indigo-700 transition"
-        >
-          <div className="flex items-center justify-between">
-            <div>
-              <h2 className="text-lg font-semibold flex items-center gap-2">
-                <span>🏷️</span> Categorizacao em Lote
-              </h2>
-              <p className="text-blue-100 mt-1">
-                {uncategorizedCount.toLocaleString("pt-BR")} transacoes sem categoria.
-                Categorize por padroes como &ldquo;IFD*&rdquo; para iFood.
-              </p>
-            </div>
-            <span className="text-2xl">→</span>
-          </div>
-        </Link>
-      )}
-
-      {/* Add new category */}
-      <div className="bg-white rounded-xl p-6 border border-gray-200">
-        <h2 className="text-lg font-semibold text-gray-900 mb-4">
-          Nova Categoria
-        </h2>
-        <CategoryForm />
-      </div>
-
-      {/* User categories */}
-      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-        <div className="px-6 py-4 border-b border-gray-200">
-          <h2 className="text-lg font-semibold text-gray-900">
-            Suas Categorias
-          </h2>
-          <p className="text-sm text-gray-600">
-            {userCategories.length} categoria(s) personalizada(s)
-          </p>
-        </div>
-
-        {userCategories.length === 0 ? (
-          <div className="p-8 text-center">
-            <span className="text-4xl">🏷️</span>
-            <p className="mt-2 text-gray-600">
-              Voce ainda nao criou nenhuma categoria.
-            </p>
-          </div>
-        ) : (
-          <CategoryList categories={userCategories} editable />
-        )}
-      </div>
-
-      {/* System categories */}
-      {systemCategories.length > 0 && (
-        <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-          <div className="px-6 py-4 border-b border-gray-200">
-            <h2 className="text-lg font-semibold text-gray-900">
-              Categorias do Sistema
-            </h2>
-            <p className="text-sm text-gray-600">
-              Categorias padrao disponiveis para todos
-            </p>
-          </div>
-          <CategoryList categories={systemCategories} editable={false} />
-        </div>
-      )}
-    </div>
+    <CategoriesPageClient
+      categories={categories}
+      uncategorizedCount={uncategorizedCount}
+      totalSpent={totalSpent}
+      patterns={formattedPatterns}
+      initialTab={activeTab}
+    />
   );
 }

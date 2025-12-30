@@ -13,8 +13,8 @@ function detectPatterns(descriptions: string[]): Map<string, { pattern: string; 
     // Strategy 1: Look for common prefixes (first word or first N chars before space/*)
     const firstWordMatch = cleanDesc.match(/^([A-Z0-9]+[\*\s])/);
     if (firstWordMatch) {
-      const prefix = firstWordMatch[1].replace(/[\*\s]+$/, "") + "*";
-      if (prefix.length >= 3) {
+      const prefix = firstWordMatch[1].replace(/[\*\s]+$/, "");
+      if (prefix.length >= 2) {
         const existing = patterns.get(prefix);
         if (existing) {
           existing.count++;
@@ -31,15 +31,14 @@ function detectPatterns(descriptions: string[]): Map<string, { pattern: string; 
     // Strategy 2: First 3-6 characters as prefix
     const shortPrefix = cleanDesc.substring(0, Math.min(6, cleanDesc.length)).replace(/\s+$/, "");
     if (shortPrefix.length >= 3) {
-      const prefixKey = shortPrefix + "*";
-      const existing = patterns.get(prefixKey);
+      const existing = patterns.get(shortPrefix);
       if (existing) {
         existing.count++;
         if (existing.examples.length < 3 && !existing.examples.includes(desc)) {
           existing.examples.push(desc);
         }
       } else {
-        patterns.set(prefixKey, { pattern: prefixKey, count: 1, examples: [desc] });
+        patterns.set(shortPrefix, { pattern: shortPrefix, count: 1, examples: [desc] });
       }
     }
   }
@@ -115,7 +114,7 @@ export async function POST(request: NextRequest) {
     const { pattern, search, categoryId, preview, includeAll, offset = 0, limit = 50 } = body as {
       pattern?: string;
       search?: string;
-      categoryId: string;
+      categoryId?: string;
       preview?: boolean;
       includeAll?: boolean; // Include already categorized transactions
       offset?: number;
@@ -124,26 +123,37 @@ export async function POST(request: NextRequest) {
 
     const searchTerm = search || pattern;
 
-    if (!searchTerm || !categoryId) {
+    if (!searchTerm) {
       return NextResponse.json(
-        { error: "Termo de busca e categoria sao obrigatorios" },
+        { error: "Termo de busca e obrigatorio" },
         { status: 400 }
       );
     }
 
-    // Verify category exists and belongs to user
-    const category = await prisma.category.findFirst({
-      where: {
-        id: categoryId,
-        OR: [{ userId: session.user.id }, { isSystem: true }],
-      },
-    });
-
-    if (!category) {
+    // Category is only required when applying (not preview)
+    if (!preview && !categoryId) {
       return NextResponse.json(
-        { error: "Categoria nao encontrada" },
-        { status: 404 }
+        { error: "Categoria e obrigatoria para aplicar" },
+        { status: 400 }
       );
+    }
+
+    // Verify category exists if provided
+    let category = null;
+    if (categoryId) {
+      category = await prisma.category.findFirst({
+        where: {
+          id: categoryId,
+          OR: [{ userId: session.user.id }, { isSystem: true }],
+        },
+      });
+
+      if (!category) {
+        return NextResponse.json(
+          { error: "Categoria nao encontrada" },
+          { status: 404 }
+        );
+      }
     }
 
     // Build where clause based on search type
@@ -205,8 +215,8 @@ export async function POST(request: NextRequest) {
 
       return NextResponse.json({
         searchTerm,
-        categoryId,
-        categoryName: category.name,
+        categoryId: categoryId || null,
+        categoryName: category?.name || null,
         matchCount: totalCount,
         matches: matchingTransactions.map((tx) => ({
           id: tx.id,
@@ -227,20 +237,20 @@ export async function POST(request: NextRequest) {
       select: { id: true },
     });
 
-    // Apply categorization
+    // Apply categorization (category is guaranteed to exist here due to earlier check)
     const result = await prisma.transaction.updateMany({
       where: {
         id: { in: matchingTransactions.map((tx) => tx.id) },
       },
       data: {
-        categoryId: category.id,
+        categoryId: category!.id,
       },
     });
 
     return NextResponse.json({
       success: true,
       searchTerm,
-      categoryName: category.name,
+      categoryName: category!.name,
       updatedCount: result.count,
     });
   } catch (error) {

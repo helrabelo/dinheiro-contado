@@ -507,7 +507,7 @@ function TransactionRow({
             </p>
           ) : (
             <Link
-              href={`/dashboard/statements/${tx.statementId}`}
+              href={`/dashboard/transactions/${tx.id}`}
               className="font-medium text-gray-900 hover:text-emerald-600 transition"
             >
               {tx.description}
