@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
+import { usePrivacyMode } from "@/contexts/privacy-mode-context";
 
 interface DayData {
   date: string;
@@ -56,6 +57,7 @@ export function SpendingHeatmap() {
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
   const [hoveredDay, setHoveredDay] = useState<DayData | null>(null);
   const [tooltipPos, setTooltipPos] = useState({ x: 0, y: 0 });
+  const { formatCurrency, isPrivate } = usePrivacyMode();
 
   const fetchData = useCallback(async (year: number) => {
     setLoading(true);
@@ -78,10 +80,6 @@ export function SpendingHeatmap() {
   useEffect(() => {
     fetchData(selectedYear);
   }, [fetchData, selectedYear]);
-
-  const formatCurrency = (value: number) => {
-    return `R$ ${value.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`;
-  };
 
   const getIntensityLevel = (spending: number): number => {
     if (!data || spending === 0) return 0;
@@ -278,7 +276,7 @@ export function SpendingHeatmap() {
                         onMouseLeave={handleMouseLeave}
                         title={
                           day.data
-                            ? `${new Date(day.data.date).toLocaleDateString("pt-BR")}: ${formatCurrency(day.data.spending)}`
+                            ? `${new Date(day.data.date).toLocaleDateString("pt-BR")}: ${isPrivate ? "R$ •••••" : formatCurrency(day.data.spending)}`
                             : ""
                         }
                       />
