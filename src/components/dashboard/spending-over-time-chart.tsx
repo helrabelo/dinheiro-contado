@@ -14,6 +14,7 @@ import {
   Bar,
 } from "recharts";
 import { TimePeriodSelector, getDateRangeFromPeriod, type TimePeriod } from "./time-period-selector";
+import { usePrivacyMode } from "@/contexts/privacy-mode-context";
 
 interface TimeSeriesData {
   period: string;
@@ -54,6 +55,7 @@ export function SpendingOverTimeChart() {
   const [chartType, setChartType] = useState<ChartType>("area");
   const [showCredits, setShowCredits] = useState(true);
   const [showDebits, setShowDebits] = useState(true);
+  const { formatCurrency, isPrivate } = usePrivacyMode();
 
   const fetchData = useCallback(async (startDate: Date, endDate: Date) => {
     setLoading(true);
@@ -96,12 +98,10 @@ export function SpendingOverTimeChart() {
     fetchData(startDate, endDate);
   };
 
-  const formatCurrency = (value: number) => {
+  // Axis formatter (compact, no decimals)
+  const formatAxisCurrency = (value: number) => {
+    if (isPrivate) return "R$ •••";
     return `R$ ${value.toLocaleString("pt-BR", { minimumFractionDigits: 0 })}`;
-  };
-
-  const formatTooltipValue = (value: number) => {
-    return `R$ ${value.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`;
   };
 
   const getPeriodLabel = () => {
@@ -245,7 +245,7 @@ export function SpendingOverTimeChart() {
                 axisLine={{ stroke: "#e5e7eb" }}
               />
               <YAxis
-                tickFormatter={formatCurrency}
+                tickFormatter={formatAxisCurrency}
                 tick={{ fill: "#6b7280", fontSize: 12 }}
                 tickLine={false}
                 axisLine={{ stroke: "#e5e7eb" }}
@@ -253,7 +253,7 @@ export function SpendingOverTimeChart() {
               />
               <Tooltip
                 formatter={(value, name) => [
-                  formatTooltipValue(Number(value)),
+                  formatCurrency(Number(value)),
                   name === "credits" ? "Creditos" : "Debitos",
                 ]}
                 contentStyle={{
@@ -294,7 +294,7 @@ export function SpendingOverTimeChart() {
                 axisLine={{ stroke: "#e5e7eb" }}
               />
               <YAxis
-                tickFormatter={formatCurrency}
+                tickFormatter={formatAxisCurrency}
                 tick={{ fill: "#6b7280", fontSize: 12 }}
                 tickLine={false}
                 axisLine={{ stroke: "#e5e7eb" }}
@@ -302,7 +302,7 @@ export function SpendingOverTimeChart() {
               />
               <Tooltip
                 formatter={(value, name) => [
-                  formatTooltipValue(Number(value)),
+                  formatCurrency(Number(value)),
                   name === "credits" ? "Creditos" : "Debitos",
                 ]}
                 contentStyle={{
@@ -329,19 +329,19 @@ export function SpendingOverTimeChart() {
         <div>
           <p className="text-sm text-gray-500">Total Creditos</p>
           <p className="text-lg font-semibold text-green-600">
-            {formatTooltipValue(data.totals.credits)}
+            {formatCurrency(data.totals.credits)}
           </p>
         </div>
         <div>
           <p className="text-sm text-gray-500">Total Debitos</p>
           <p className="text-lg font-semibold text-red-600">
-            {formatTooltipValue(data.totals.debits)}
+            {formatCurrency(data.totals.debits)}
           </p>
         </div>
         <div>
           <p className="text-sm text-gray-500">Media Mensal</p>
           <p className="text-lg font-semibold text-gray-900">
-            {formatTooltipValue(data.averages.debits)}
+            {formatCurrency(data.averages.debits)}
           </p>
         </div>
         <div>
@@ -351,7 +351,7 @@ export function SpendingOverTimeChart() {
               data.totals.net >= 0 ? "text-green-600" : "text-red-600"
             }`}
           >
-            {formatTooltipValue(data.totals.net)}
+            {formatCurrency(data.totals.net)}
           </p>
         </div>
       </div>

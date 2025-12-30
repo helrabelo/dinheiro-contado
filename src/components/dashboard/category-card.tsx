@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useState, useRef, useEffect } from "react";
+import { usePrivacyMode } from "@/contexts/privacy-mode-context";
 
 export interface CategoryCardData {
   id: string;
@@ -32,6 +33,7 @@ export function CategoryCard({
   const [showMenu, setShowMenu] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
+  const { formatCurrency } = usePrivacyMode();
 
   // Close menu when clicking outside
   useEffect(() => {
@@ -76,10 +78,6 @@ export function CategoryCard({
 
     setDeleting(true);
     onDelete?.(category);
-  };
-
-  const formatCurrency = (value: number) => {
-    return `R$ ${value.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`;
   };
 
   const canDelete = editable && category._count.transactions === 0;

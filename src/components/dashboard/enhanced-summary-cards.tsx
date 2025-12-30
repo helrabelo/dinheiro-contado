@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
+import { usePrivacyMode } from "@/contexts/privacy-mode-context";
 
 interface SummaryStats {
   averages: {
@@ -47,6 +48,7 @@ export function EnhancedSummaryCards() {
   const [data, setData] = useState<SummaryStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const { formatCurrency } = usePrivacyMode();
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -68,16 +70,8 @@ export function EnhancedSummaryCards() {
     fetchData();
   }, [fetchData]);
 
-  const formatCurrency = (value: number) => {
-    return `R$ ${value.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`;
-  };
-
-  const formatCompactCurrency = (value: number) => {
-    if (value >= 1000) {
-      return `R$ ${(value / 1000).toFixed(1)}k`;
-    }
-    return formatCurrency(value);
-  };
+  // Use context-aware formatCurrency with compact option
+  const formatCompactCurrency = (value: number) => formatCurrency(value, true);
 
   if (loading) {
     return (

@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { signOut } from "next-auth/react";
+import { usePrivacyMode } from "@/contexts/privacy-mode-context";
 
 interface MobileNavProps {
   user: {
@@ -25,6 +26,7 @@ const navigation = [
 export function MobileNav({ user }: MobileNavProps) {
   const pathname = usePathname();
   const [isOpen, setIsOpen] = useState(false);
+  const { isPrivate, toggle } = usePrivacyMode();
 
   // Close menu when route changes
   useEffect(() => {
@@ -48,21 +50,34 @@ export function MobileNav({ user }: MobileNavProps) {
       {/* Mobile Header */}
       <header className="fixed top-0 left-0 right-0 h-16 bg-white border-b border-gray-200 flex items-center justify-between px-4 lg:hidden z-40">
         <h1 className="text-lg font-bold text-emerald-600">Dinheiro Contado</h1>
-        <button
-          onClick={() => setIsOpen(!isOpen)}
-          className="p-2 rounded-lg hover:bg-gray-100 transition"
-          aria-label={isOpen ? "Fechar menu" : "Abrir menu"}
-        >
-          {isOpen ? (
-            <svg className="w-6 h-6 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          ) : (
-            <svg className="w-6 h-6 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-            </svg>
-          )}
-        </button>
+        <div className="flex items-center gap-2">
+          {/* Privacy Toggle in Header */}
+          <button
+            onClick={toggle}
+            className={`p-2 rounded-lg transition ${
+              isPrivate ? "bg-amber-50 text-amber-700" : "hover:bg-gray-100"
+            }`}
+            aria-label={isPrivate ? "Desativar modo privacidade" : "Ativar modo privacidade"}
+          >
+            <span className="text-xl">{isPrivate ? "👁️‍🗨️" : "👁️"}</span>
+          </button>
+          {/* Menu Toggle */}
+          <button
+            onClick={() => setIsOpen(!isOpen)}
+            className="p-2 rounded-lg hover:bg-gray-100 transition"
+            aria-label={isOpen ? "Fechar menu" : "Abrir menu"}
+          >
+            {isOpen ? (
+              <svg className="w-6 h-6 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            ) : (
+              <svg className="w-6 h-6 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+              </svg>
+            )}
+          </button>
+        </div>
       </header>
 
       {/* Overlay */}

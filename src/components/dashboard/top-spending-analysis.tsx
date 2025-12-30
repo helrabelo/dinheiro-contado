@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { TimePeriodSelector, getDateRangeFromPeriod, type TimePeriod } from "./time-period-selector";
+import { usePrivacyMode } from "@/contexts/privacy-mode-context";
 
 interface Merchant {
   name: string;
@@ -53,6 +54,7 @@ export function TopSpendingAnalysis() {
   const [error, setError] = useState<string | null>(null);
   const [currentPeriod, setCurrentPeriod] = useState<TimePeriod>("all");
   const [activeTab, setActiveTab] = useState<TabType>("merchants");
+  const { formatCurrency } = usePrivacyMode();
 
   const fetchData = useCallback(async (startDate: Date, endDate: Date) => {
     setLoading(true);
@@ -87,10 +89,6 @@ export function TopSpendingAnalysis() {
   const handlePeriodChange = (startDate: Date, endDate: Date, period: TimePeriod) => {
     setCurrentPeriod(period);
     fetchData(startDate, endDate);
-  };
-
-  const formatCurrency = (value: number) => {
-    return `R$ ${value.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`;
   };
 
   const formatDate = (date: string) => {

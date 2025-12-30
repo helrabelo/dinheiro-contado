@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { signOut } from "next-auth/react";
+import { usePrivacyMode } from "@/contexts/privacy-mode-context";
 
 interface SidebarProps {
   user: {
@@ -23,6 +24,7 @@ const navigation = [
 
 export function Sidebar({ user }: SidebarProps) {
   const pathname = usePathname();
+  const { isPrivate, toggle } = usePrivacyMode();
 
   return (
     <aside className="fixed inset-y-0 left-0 w-64 bg-white border-r border-gray-200 hidden lg:block">
@@ -54,6 +56,24 @@ export function Sidebar({ user }: SidebarProps) {
             );
           })}
         </nav>
+
+        {/* Privacy Toggle */}
+        <div className="px-4 pb-2">
+          <button
+            onClick={toggle}
+            className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition ${
+              isPrivate
+                ? "bg-amber-50 text-amber-700"
+                : "text-gray-700 hover:bg-gray-100"
+            }`}
+            title="Modo privacidade (Cmd/Ctrl+Shift+P)"
+          >
+            <span className="text-xl">{isPrivate ? "👁️‍🗨️" : "👁️"}</span>
+            <span className="font-medium">
+              {isPrivate ? "Modo Privado" : "Privacidade"}
+            </span>
+          </button>
+        </div>
 
         {/* User section */}
         <div className="p-4 border-t border-gray-200">

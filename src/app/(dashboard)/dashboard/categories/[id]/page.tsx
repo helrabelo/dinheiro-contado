@@ -5,6 +5,7 @@ import Link from "next/link";
 import { CategoryDetailCharts } from "./category-detail-charts";
 import { CategoryDetailHeader } from "./category-detail-header";
 import { CategoryTransactionList } from "./category-transaction-list";
+import { CategoryDetailStats } from "./category-detail-stats";
 
 interface Props {
   params: Promise<{ id: string }>;
@@ -51,10 +52,6 @@ export default async function CategoryDetailPage({ params }: Props) {
     _max: { transactionDate: true },
   });
 
-  const formatCurrency = (value: number) => {
-    return `R$ ${Math.abs(value).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`;
-  };
-
   return (
     <div className="space-y-8">
       {/* Header with Edit */}
@@ -71,50 +68,14 @@ export default async function CategoryDetailPage({ params }: Props) {
       />
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
-        <div className="bg-white rounded-xl p-6 border border-gray-200">
-          <p className="text-sm text-gray-600">Total de Transacoes</p>
-          <p className="text-2xl font-bold text-gray-900 mt-1">
-            {totalCount.toLocaleString("pt-BR")}
-          </p>
-        </div>
-        <div className="bg-white rounded-xl p-6 border border-gray-200">
-          <p className="text-sm text-gray-600">Debitos</p>
-          <p className="text-2xl font-bold text-red-600 mt-1">
-            {debitCount.toLocaleString("pt-BR")}
-          </p>
-        </div>
-        <div className="bg-white rounded-xl p-6 border border-gray-200">
-          <p className="text-sm text-gray-600">Creditos</p>
-          <p className="text-2xl font-bold text-green-600 mt-1">
-            {creditCount.toLocaleString("pt-BR")}
-          </p>
-        </div>
-        <div className="bg-white rounded-xl p-6 border border-gray-200">
-          <p className="text-sm text-gray-600">Total Gasto</p>
-          <p className="text-2xl font-bold text-gray-900 mt-1">
-            {formatCurrency(Math.abs(Number(totalSpent._sum.amount) || 0))}
-          </p>
-        </div>
-        <div className="bg-white rounded-xl p-6 border border-gray-200">
-          <p className="text-sm text-gray-600">Periodo</p>
-          <p className="text-lg font-medium text-gray-900 mt-1">
-            {dateRange._min.transactionDate
-              ? new Date(dateRange._min.transactionDate).toLocaleDateString("pt-BR", {
-                  month: "short",
-                  year: "numeric",
-                })
-              : "-"}{" "}
-            -{" "}
-            {dateRange._max.transactionDate
-              ? new Date(dateRange._max.transactionDate).toLocaleDateString("pt-BR", {
-                  month: "short",
-                  year: "numeric",
-                })
-              : "-"}
-          </p>
-        </div>
-      </div>
+      <CategoryDetailStats
+        totalCount={totalCount}
+        debitCount={debitCount}
+        creditCount={creditCount}
+        totalSpent={Math.abs(Number(totalSpent._sum.amount) || 0)}
+        dateRangeMin={dateRange._min.transactionDate?.toISOString() || null}
+        dateRangeMax={dateRange._max.transactionDate?.toISOString() || null}
+      />
 
       {/* Charts and Details */}
       {totalCount > 0 && (

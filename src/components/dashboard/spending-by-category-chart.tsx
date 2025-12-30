@@ -11,6 +11,7 @@ import {
 } from "recharts";
 import Link from "next/link";
 import { TimePeriodSelector, getDateRangeFromPeriod, type TimePeriod } from "./time-period-selector";
+import { usePrivacyMode } from "@/contexts/privacy-mode-context";
 
 interface CategorySpending {
   categoryId: string | null;
@@ -37,6 +38,7 @@ export function SpendingByCategoryChart() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [currentPeriod, setCurrentPeriod] = useState<TimePeriod>("all");
+  const { formatCurrency, isPrivate } = usePrivacyMode();
 
   const fetchData = useCallback(async (startDate: Date, endDate: Date) => {
     setLoading(true);
@@ -70,10 +72,6 @@ export function SpendingByCategoryChart() {
   const handlePeriodChange = (startDate: Date, endDate: Date, period: TimePeriod) => {
     setCurrentPeriod(period);
     fetchData(startDate, endDate);
-  };
-
-  const formatCurrency = (value: number) => {
-    return `R$ ${value.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`;
   };
 
   const getPeriodLabel = () => {
@@ -158,7 +156,7 @@ export function SpendingByCategoryChart() {
                 innerRadius={60}
                 outerRadius={100}
                 paddingAngle={2}
-                label={({ name, payload }) => {
+                label={isPrivate ? false : ({ name, payload }) => {
                   const pct = payload?.percentage ?? 0;
                   return pct > 5 ? `${name} (${pct.toFixed(0)}%)` : "";
                 }}

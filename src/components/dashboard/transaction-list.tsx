@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useState, useRef, useEffect, useCallback } from "react";
+import { usePrivacyMode } from "@/contexts/privacy-mode-context";
 
 interface Category {
   id: string;
@@ -52,6 +53,9 @@ function formatDatePtBR(dateKey: string): string {
 }
 
 export function TransactionList({ transactions, categories, onCategoryChange }: TransactionListProps) {
+  // Privacy mode
+  const { formatCurrency, isPrivate } = usePrivacyMode();
+
   // Selection state
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [selectionMode, setSelectionMode] = useState(false);
@@ -213,7 +217,7 @@ export function TransactionList({ transactions, categories, onCategoryChange }: 
           </div>
           {selectedIds.size > 0 && (
             <span className="text-sm text-gray-500">
-              {selectedIds.size} selecionada(s) • R$ {selectedAmount.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+              {selectedIds.size} selecionada(s) • {formatCurrency(selectedAmount)}
             </span>
           )}
         </div>
@@ -286,8 +290,7 @@ export function TransactionList({ transactions, categories, onCategoryChange }: 
                   dayTotal >= 0 ? "text-green-600" : "text-red-600"
                 }`}
               >
-                {dayTotal >= 0 ? "+" : ""}R${" "}
-                {dayTotal.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                {isPrivate ? "R$ •••••" : `${dayTotal >= 0 ? "+" : ""}${formatCurrency(dayTotal)}`}
               </span>
             </div>
 
@@ -303,6 +306,7 @@ export function TransactionList({ transactions, categories, onCategoryChange }: 
                   selectionMode={selectionMode}
                   isSelected={selectedIds.has(tx.id)}
                   onToggleSelect={() => toggleSelection(tx.id)}
+                  formatCurrency={formatCurrency}
                 />
               ))}
             </div>
@@ -383,6 +387,7 @@ interface TransactionRowProps {
   selectionMode?: boolean;
   isSelected?: boolean;
   onToggleSelect?: () => void;
+  formatCurrency: (value: number, compact?: boolean) => string;
 }
 
 function TransactionRow({
@@ -393,6 +398,7 @@ function TransactionRow({
   selectionMode = false,
   isSelected = false,
   onToggleSelect,
+  formatCurrency,
 }: TransactionRowProps) {
   const amount = tx.amount; // Already a number from serialization
   const isPositive = tx.type === "CREDIT";
@@ -628,8 +634,7 @@ function TransactionRow({
         <p
           className={`font-medium ${isPositive ? "text-green-600" : "text-gray-900"}`}
         >
-          {isPositive ? "+" : "-"} R${" "}
-          {Math.abs(amount).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+          {isPositive ? "+" : "-"} {formatCurrency(Math.abs(amount))}
         </p>
         <p className="text-xs text-gray-500">{tx.type === "CREDIT" ? "Credito" : tx.type === "DEBIT" ? "Debito" : "Transferencia"}</p>
       </div>

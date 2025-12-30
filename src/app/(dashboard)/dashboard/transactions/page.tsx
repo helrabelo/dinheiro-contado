@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db";
 import Link from "next/link";
 import { TransactionFilters } from "@/components/dashboard/transaction-filters";
 import { TransactionList } from "@/components/dashboard/transaction-list";
+import { TransactionsStats } from "@/components/dashboard/transactions-stats";
 import { UploadButton } from "@/components/dashboard/upload-button";
 import { Prisma } from "@prisma/client";
 
@@ -213,33 +214,14 @@ export default async function TransactionsPage({
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div className="bg-white rounded-xl p-4 border border-gray-200">
-          <p className="text-sm text-gray-600">Total Gastos</p>
-          <p className="text-2xl font-bold text-red-600">
-            R$ {totalDebits.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
-          </p>
-          <p className="text-xs text-gray-500 mt-1">
-            Creditos: R$ {totalCredits.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
-          </p>
-        </div>
-        <div className="bg-white rounded-xl p-4 border border-gray-200">
-          <p className="text-sm text-gray-600">Gastos {now.getFullYear()}</p>
-          <p className="text-2xl font-bold text-red-600">
-            R$ {lastYearTotal.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
-          </p>
-          <p className="text-xs text-gray-500 mt-1">desde janeiro</p>
-        </div>
-        <div className="bg-white rounded-xl p-4 border border-gray-200">
-          <p className="text-sm text-gray-600">
-            {now.toLocaleDateString("pt-BR", { month: "long" })}
-          </p>
-          <p className="text-2xl font-bold text-orange-600">
-            R$ {lastMonthTotal.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
-          </p>
-          <p className="text-xs text-gray-500 mt-1">mes atual</p>
-        </div>
-      </div>
+      <TransactionsStats
+        totalDebits={totalDebits}
+        totalCredits={totalCredits}
+        yearTotal={lastYearTotal}
+        monthTotal={lastMonthTotal}
+        year={now.getFullYear()}
+        monthName={now.toLocaleDateString("pt-BR", { month: "long" })}
+      />
 
       {/* Filters */}
       <TransactionFilters
