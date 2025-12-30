@@ -45,6 +45,7 @@ async function getPeriodData(
       },
       select: { amount: true, type: true },
     }),
+    // Note: Debits are stored as NEGATIVE numbers, so ASC gives us biggest expenses first
     prisma.transaction.groupBy({
       by: ["categoryId"],
       where: {
@@ -54,7 +55,7 @@ async function getPeriodData(
       },
       _sum: { amount: true },
       _count: true,
-      orderBy: { _sum: { amount: "desc" } },
+      orderBy: { _sum: { amount: "asc" } },
       take: 5,
     }),
   ]);

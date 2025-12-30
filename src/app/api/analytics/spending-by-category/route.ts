@@ -24,6 +24,8 @@ export async function GET(request: NextRequest) {
 
   try {
     // Get ALL spending grouped by category (no limit) to calculate true total
+    // Note: Debits are stored as NEGATIVE numbers, so we order ASC to get largest expenses first
+    // (e.g., -10000 < -1000 < -100, so ASC gives us biggest expenses first)
     const allSpendingByCategory = await prisma.transaction.groupBy({
       by: ["categoryId"],
       where: {
@@ -33,7 +35,7 @@ export async function GET(request: NextRequest) {
       },
       _sum: { amount: true },
       _count: true,
-      orderBy: { _sum: { amount: "desc" } },
+      orderBy: { _sum: { amount: "asc" } },
     });
 
     // Calculate TRUE total including all categories and uncategorized
