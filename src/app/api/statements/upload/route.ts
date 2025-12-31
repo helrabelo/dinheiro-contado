@@ -150,10 +150,9 @@ export async function POST(request: NextRequest) {
       parseResult.transactions
     );
 
-    // Create transactions from parse result with auto-categorization
+    // Prepare transaction data with hashes and categories
     let categorizedCount = 0;
-    const transactionPromises = parseResult.transactions.map((tx) => {
-      // Create a hash for deduplication
+    const transactionsToCreate = parseResult.transactions.map((tx) => {
       const txHash = crypto
         .createHash("sha256")
         .update(
@@ -161,31 +160,51 @@ export async function POST(request: NextRequest) {
         )
         .digest("hex");
 
-      // Auto-categorize based on description
       const match =
         findCategory(tx.original_description) || findCategory(tx.description);
       const categoryId = match ? categoryCache.get(match.category) : null;
       if (categoryId) categorizedCount++;
 
-      return prisma.transaction.create({
-        data: {
-          userId: session.user.id,
-          statementId: statement.id,
-          transactionDate: new Date(tx.date),
-          description: tx.description,
-          originalDescription: tx.original_description,
-          amount: tx.amount,
-          type: tx.type,
-          installmentCurrent: tx.installment_current,
-          installmentTotal: tx.installment_total,
-          isInternational: tx.is_international,
-          transactionHash: txHash,
-          categoryId,
-        },
-      });
+      return {
+        userId: session.user.id,
+        statementId: statement.id,
+        transactionDate: new Date(tx.date),
+        description: tx.description,
+        originalDescription: tx.original_description,
+        amount: tx.amount,
+        type: tx.type as "CREDIT" | "DEBIT" | "TRANSFER",
+        installmentCurrent: tx.installment_current,
+        installmentTotal: tx.installment_total,
+        isInternational: tx.is_international,
+        transactionHash: txHash,
+        categoryId,
+      };
     });
 
-    await Promise.all(transactionPromises);
+    // Use Prisma transaction to ensure atomicity and check for duplicates
+    await prisma.$transaction(async (tx) => {
+      // Get existing transaction hashes to avoid duplicates
+      const existingHashes = await tx.transaction.findMany({
+        where: {
+          transactionHash: { in: transactionsToCreate.map((t) => t.transactionHash) },
+        },
+        select: { transactionHash: true },
+      });
+      const existingHashSet = new Set(existingHashes.map((h) => h.transactionHash));
+
+      // Filter out duplicates
+      const newTransactions = transactionsToCreate.filter(
+        (t) => !existingHashSet.has(t.transactionHash)
+      );
+
+      // Create all new transactions atomically
+      if (newTransactions.length > 0) {
+        await tx.transaction.createMany({
+          data: newTransactions,
+          skipDuplicates: true,
+        });
+      }
+    });
 
     // Find or create credit card if we have card info
     let creditCardId: string | undefined;

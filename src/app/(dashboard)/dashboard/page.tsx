@@ -11,6 +11,8 @@ import { EnhancedSummaryCards } from "@/components/dashboard/enhanced-summary-ca
 import { DashboardSection } from "@/components/dashboard/dashboard-section";
 import { UploadButton } from "@/components/dashboard/upload-button";
 import { RecentTransactions } from "@/components/dashboard/recent-transactions";
+import { RecurringTransactions } from "@/components/dashboard/recurring-transactions";
+import { BudgetOverview } from "@/components/dashboard/budget-overview";
 
 export default async function DashboardPage() {
   const session = await auth();
@@ -157,6 +159,13 @@ export default async function DashboardPage() {
         </DashboardSection>
       )}
 
+      {/* Budget Overview */}
+      {transactionsCount > 0 && (
+        <DashboardSection id="budgets" title="Orcamentos do Mes" icon="💰">
+          <BudgetOverview />
+        </DashboardSection>
+      )}
+
       {/* Stats */}
       <DashboardSection id="stats" title="Totais" icon="📈">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -202,6 +211,10 @@ export default async function DashboardPage() {
 
           <DashboardSection id="calendar" title="Calendario Interativo" icon="📆" defaultCollapsed>
             <SpendingCalendar />
+          </DashboardSection>
+
+          <DashboardSection id="recurring" title="Gastos Recorrentes" icon="🔄" defaultCollapsed>
+            <RecurringTransactions />
           </DashboardSection>
         </>
       )}

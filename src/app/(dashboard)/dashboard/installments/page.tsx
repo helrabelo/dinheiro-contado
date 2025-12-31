@@ -29,6 +29,14 @@ function normalizeDescription(desc: string): string {
     .toLowerCase();
 }
 
+function calculateOriginMonth(transactionDate: Date, installmentCurrent: number): string {
+  // Calculate approximate month when first installment occurred
+  // This differentiates two purchases of same item/amount made in different months
+  const originDate = new Date(transactionDate);
+  originDate.setMonth(originDate.getMonth() - (installmentCurrent - 1));
+  return `${originDate.getFullYear()}-${String(originDate.getMonth() + 1).padStart(2, '0')}`;
+}
+
 export default async function InstallmentsPage() {
   const session = await auth();
 
@@ -46,13 +54,15 @@ export default async function InstallmentsPage() {
     },
   });
 
-  // Group by normalized description + amount
+  // Group by normalized description + amount + origin month
+  // This prevents two different purchases with same amount from being grouped together
   const groupsMap = new Map<string, InstallmentGroup>();
 
   for (const tx of transactions) {
     const normalizedDesc = normalizeDescription(tx.description);
     const amount = Math.abs(Number(tx.amount));
-    const key = `${normalizedDesc}|${amount.toFixed(2)}`;
+    const originMonth = calculateOriginMonth(tx.transactionDate, tx.installmentCurrent || 1);
+    const key = `${normalizedDesc}|${amount.toFixed(2)}|${originMonth}`;
 
     if (!groupsMap.has(key)) {
       groupsMap.set(key, {

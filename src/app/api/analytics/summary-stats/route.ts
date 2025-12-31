@@ -10,71 +10,132 @@ export async function GET(request: NextRequest) {
 
   try {
     const now = new Date();
-
-    // Get all transactions for this year
     const yearStart = new Date(now.getFullYear(), 0, 1);
-    const allTransactions = await prisma.transaction.findMany({
-      where: {
-        userId: session.user.id,
-        transactionDate: { gte: yearStart },
-      },
-      select: {
-        amount: true,
-        type: true,
-        transactionDate: true,
-        categoryId: true,
-      },
-      orderBy: { transactionDate: "desc" },
-    });
+    const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+    const sixtyDaysAgo = new Date(now.getTime() - 60 * 24 * 60 * 60 * 1000);
+    const thisMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+    const lastMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    const lastMonthEnd = new Date(now.getFullYear(), now.getMonth(), 0);
 
-    // Monthly spending by month
-    // Note: DEBIT amounts are stored as negative values in DB, use Math.abs()
-    const monthlySpending = new Map<string, number>();
-    for (const tx of allTransactions) {
-      if (tx.type === "DEBIT") {
-        const monthKey = new Date(tx.transactionDate).toISOString().substring(0, 7);
-        monthlySpending.set(
-          monthKey,
-          (monthlySpending.get(monthKey) || 0) + Math.abs(Number(tx.amount))
-        );
-      }
-    }
+    // Run all aggregations in parallel instead of loading all transactions into memory
+    const [
+      monthlySpendingData,
+      last30DaysAgg,
+      prev30DaysAgg,
+      categoryCountsData,
+      thisMonthAgg,
+      lastMonthAgg,
+      typeTotals,
+      transactionCount,
+    ] = await Promise.all([
+      // Monthly spending by month using raw SQL for date_trunc
+      prisma.$queryRaw<Array<{ month: string; total: number }>>`
+        SELECT
+          TO_CHAR(DATE_TRUNC('month', "transactionDate"), 'YYYY-MM') as month,
+          SUM(ABS(amount))::float as total
+        FROM transactions
+        WHERE "userId" = ${session.user.id}
+        AND type = 'DEBIT'
+        AND "transactionDate" >= ${yearStart}
+        GROUP BY DATE_TRUNC('month', "transactionDate")
+        ORDER BY month ASC
+      `,
 
-    const monthlyValues = Array.from(monthlySpending.entries())
-      .sort((a, b) => a[0].localeCompare(b[0]));
+      // Last 30 days spending
+      prisma.transaction.aggregate({
+        where: {
+          userId: session.user.id,
+          type: "DEBIT",
+          transactionDate: { gte: thirtyDaysAgo },
+        },
+        _sum: { amount: true },
+      }),
 
-    // Calculate average monthly spending
-    const totalMonthlySpending = monthlyValues.reduce((sum, [, val]) => sum + val, 0);
+      // Previous 30 days spending
+      prisma.transaction.aggregate({
+        where: {
+          userId: session.user.id,
+          type: "DEBIT",
+          transactionDate: { gte: sixtyDaysAgo, lt: thirtyDaysAgo },
+        },
+        _sum: { amount: true },
+      }),
+
+      // Category counts - get most common
+      prisma.transaction.groupBy({
+        by: ["categoryId"],
+        where: {
+          userId: session.user.id,
+          type: "DEBIT",
+          transactionDate: { gte: yearStart },
+          categoryId: { not: null },
+        },
+        _count: true,
+        orderBy: { _count: { categoryId: "desc" } },
+        take: 1,
+      }),
+
+      // This month spending
+      prisma.transaction.aggregate({
+        where: {
+          userId: session.user.id,
+          type: "DEBIT",
+          transactionDate: { gte: thisMonthStart },
+        },
+        _sum: { amount: true },
+      }),
+
+      // Last month spending
+      prisma.transaction.aggregate({
+        where: {
+          userId: session.user.id,
+          type: "DEBIT",
+          transactionDate: { gte: lastMonthStart, lte: lastMonthEnd },
+        },
+        _sum: { amount: true },
+      }),
+
+      // Type totals (credits and debits)
+      prisma.transaction.groupBy({
+        by: ["type"],
+        where: {
+          userId: session.user.id,
+          transactionDate: { gte: yearStart },
+        },
+        _sum: { amount: true },
+      }),
+
+      // Total transaction count
+      prisma.transaction.count({
+        where: {
+          userId: session.user.id,
+          transactionDate: { gte: yearStart },
+        },
+      }),
+    ]);
+
+    // Process monthly spending data
+    const monthlyValues = monthlySpendingData.map((m) => ({
+      month: m.month,
+      amount: m.total,
+    }));
+
+    const totalMonthlySpending = monthlyValues.reduce((sum, m) => sum + m.amount, 0);
     const avgMonthlySpending = monthlyValues.length > 0
       ? totalMonthlySpending / monthlyValues.length
       : 0;
 
     // Find highest spending month
     let highestMonth = { month: "", amount: 0 };
-    for (const [month, amount] of monthlyValues) {
-      if (amount > highestMonth.amount) {
-        highestMonth = { month, amount };
+    for (const m of monthlyValues) {
+      if (m.amount > highestMonth.amount) {
+        highestMonth = { month: m.month, amount: m.amount };
       }
     }
 
-    // Calculate spending velocity (trend)
-    // Compare last 30 days to previous 30 days
-    const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
-    const sixtyDaysAgo = new Date(now.getTime() - 60 * 24 * 60 * 60 * 1000);
-
-    const last30DaysSpending = allTransactions
-      .filter((tx) => tx.type === "DEBIT" && new Date(tx.transactionDate) >= thirtyDaysAgo)
-      .reduce((sum, tx) => sum + Math.abs(Number(tx.amount)), 0);
-
-    const prev30DaysSpending = allTransactions
-      .filter(
-        (tx) =>
-          tx.type === "DEBIT" &&
-          new Date(tx.transactionDate) >= sixtyDaysAgo &&
-          new Date(tx.transactionDate) < thirtyDaysAgo
-      )
-      .reduce((sum, tx) => sum + Math.abs(Number(tx.amount)), 0);
-
+    // Calculate velocity
+    const last30DaysSpending = Math.abs(Number(last30DaysAgg._sum.amount) || 0);
+    const prev30DaysSpending = Math.abs(Number(prev30DaysAgg._sum.amount) || 0);
     const velocityChange = prev30DaysSpending > 0
       ? ((last30DaysSpending - prev30DaysSpending) / prev30DaysSpending) * 100
       : 0;
@@ -84,71 +145,39 @@ export async function GET(request: NextRequest) {
     else if (velocityChange < -5) velocityTrend = "down";
     else velocityTrend = "stable";
 
-    // Most common category
-    const categoryCounts = new Map<string | null, number>();
-    for (const tx of allTransactions.filter((t) => t.type === "DEBIT")) {
-      categoryCounts.set(
-        tx.categoryId,
-        (categoryCounts.get(tx.categoryId) || 0) + 1
-      );
-    }
-
-    let mostCommonCategoryId: string | null = null;
-    let maxCount = 0;
-    for (const [catId, count] of categoryCounts.entries()) {
-      if (count > maxCount && catId !== null) {
-        mostCommonCategoryId = catId;
-        maxCount = count;
-      }
-    }
-
+    // Get most common category details
     let mostCommonCategory = null;
-    if (mostCommonCategoryId) {
+    if (categoryCountsData.length > 0 && categoryCountsData[0].categoryId) {
       const cat = await prisma.category.findUnique({
-        where: { id: mostCommonCategoryId },
+        where: { id: categoryCountsData[0].categoryId },
         select: { name: true, icon: true, color: true },
       });
       if (cat) {
+        const debitCount = typeTotals.find((t) => t.type === "DEBIT");
+        const totalDebits = debitCount?._sum.amount
+          ? Math.abs(Number(debitCount._sum.amount))
+          : 0;
         mostCommonCategory = {
           ...cat,
-          count: maxCount,
-          percentage: (maxCount / allTransactions.filter((t) => t.type === "DEBIT").length) * 100,
+          count: categoryCountsData[0]._count,
+          percentage: totalDebits > 0
+            ? (categoryCountsData[0]._count / transactionCount) * 100
+            : 0,
         };
       }
     }
 
-    // Total spending this month vs last month
-    const thisMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-    const lastMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-    const lastMonthEnd = new Date(now.getFullYear(), now.getMonth(), 0);
-
-    const thisMonthSpending = allTransactions
-      .filter((tx) => tx.type === "DEBIT" && new Date(tx.transactionDate) >= thisMonthStart)
-      .reduce((sum, tx) => sum + Math.abs(Number(tx.amount)), 0);
-
-    const lastMonthSpending = allTransactions
-      .filter(
-        (tx) =>
-          tx.type === "DEBIT" &&
-          new Date(tx.transactionDate) >= lastMonthStart &&
-          new Date(tx.transactionDate) <= lastMonthEnd
-      )
-      .reduce((sum, tx) => sum + Math.abs(Number(tx.amount)), 0);
-
-    // Calculate how many days into the month
+    // Calculate month spending values
+    const thisMonthSpending = Math.abs(Number(thisMonthAgg._sum.amount) || 0);
+    const lastMonthSpending = Math.abs(Number(lastMonthAgg._sum.amount) || 0);
     const daysIntoMonth = now.getDate();
-    const daysInLastMonth = lastMonthEnd.getDate();
     const projectedMonthlySpending = (thisMonthSpending / daysIntoMonth) * 30;
 
-    // Credit vs Debit ratio
-    const totalCredits = allTransactions
-      .filter((tx) => tx.type === "CREDIT")
-      .reduce((sum, tx) => sum + Math.abs(Number(tx.amount)), 0);
-
-    const totalDebits = allTransactions
-      .filter((tx) => tx.type === "DEBIT")
-      .reduce((sum, tx) => sum + Math.abs(Number(tx.amount)), 0);
-
+    // Calculate type totals
+    const debitTotal = typeTotals.find((t) => t.type === "DEBIT");
+    const creditTotal = typeTotals.find((t) => t.type === "CREDIT");
+    const totalDebits = Math.abs(Number(debitTotal?._sum.amount) || 0);
+    const totalCredits = Math.abs(Number(creditTotal?._sum.amount) || 0);
     const creditDebitRatio = totalDebits > 0 ? totalCredits / totalDebits : 0;
 
     return NextResponse.json({
@@ -187,7 +216,7 @@ export async function GET(request: NextRequest) {
         savingsRate: totalCredits > 0 ? ((totalCredits - totalDebits) / totalCredits) * 100 : 0,
       },
       totals: {
-        transactionsThisYear: allTransactions.length,
+        transactionsThisYear: transactionCount,
         debitsThisYear: totalDebits,
         creditsThisYear: totalCredits,
       },

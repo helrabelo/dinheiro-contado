@@ -2,6 +2,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import Link from "next/link";
 import { UploadButton } from "@/components/dashboard/upload-button";
+import { RetryButton } from "@/components/dashboard/retry-button";
 
 // Bank display names and icons
 const BANK_INFO: Record<string, { name: string; icon: string }> = {
@@ -169,15 +170,27 @@ export default async function StatementsPage() {
                       {statement._count.transactions}
                     </td>
                     <td className="px-6 py-4">
-                      <StatusBadge status={statement.status} />
+                      <div className="flex flex-col gap-1">
+                        <StatusBadge status={statement.status} />
+                        {statement.status === "FAILED" && statement.errorMessage && (
+                          <span className="text-xs text-red-600 max-w-[200px] truncate" title={statement.errorMessage}>
+                            {statement.errorMessage}
+                          </span>
+                        )}
+                      </div>
                     </td>
                     <td className="px-6 py-4">
-                      <Link
-                        href={`/dashboard/statements/${statement.id}`}
-                        className="text-emerald-600 hover:text-emerald-700 font-medium"
-                      >
-                        Ver detalhes
-                      </Link>
+                      <div className="flex items-center gap-2">
+                        <Link
+                          href={`/dashboard/statements/${statement.id}`}
+                          className="text-emerald-600 hover:text-emerald-700 font-medium"
+                        >
+                          Ver detalhes
+                        </Link>
+                        {(statement.status === "FAILED" || statement.status === "PENDING") && (
+                          <RetryButton statementId={statement.id} />
+                        )}
+                      </div>
                     </td>
                   </tr>
                 );
