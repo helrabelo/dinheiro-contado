@@ -98,6 +98,48 @@ def validate_date(year: int, month: int, day: int) -> Optional[datetime]:
         return None
 
 
+def validate_date_with_statement_context(
+    year: int,
+    statement_month: int,
+    tx_month: int,
+    day: int
+) -> Optional[datetime]:
+    """Validate and create datetime, adjusting year for cross-year transactions.
+
+    Credit card statements often include transactions from the previous or next month.
+    For example:
+    - January 2025 statement may contain December 2024 transactions
+    - December 2024 statement may contain January 2025 transactions
+
+    Args:
+        year: Year extracted from statement filename
+        statement_month: Month extracted from statement filename (1-12)
+        tx_month: Month from the transaction line in PDF (1-12)
+        day: Day from the transaction line
+
+    Returns:
+        datetime with correctly adjusted year, or None if invalid
+    """
+    adjusted_year = year
+
+    # If statement is January (1) but transaction is from December (12),
+    # the transaction is from the previous year
+    if statement_month == 1 and tx_month == 12:
+        adjusted_year = year - 1
+    # If statement is December (12) but transaction is from January (1),
+    # the transaction is from the next year
+    elif statement_month == 12 and tx_month == 1:
+        adjusted_year = year + 1
+    # Handle February statements with December transactions (2-month span)
+    elif statement_month == 2 and tx_month == 12:
+        adjusted_year = year - 1
+    # Handle November statements with January transactions (rare but possible)
+    elif statement_month == 11 and tx_month == 1:
+        adjusted_year = year + 1
+
+    return validate_date(adjusted_year, tx_month, day)
+
+
 def validate_day_month(day: int, month: int) -> bool:
     """Quick validation of day/month values."""
     return 1 <= day <= 31 and 1 <= month <= 12

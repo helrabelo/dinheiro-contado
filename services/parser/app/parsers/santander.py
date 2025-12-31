@@ -14,10 +14,11 @@ import pdfplumber
 
 from .base import BaseParser, ParseResult, Transaction
 from ..utils import (
+    extract_month_from_filename,
     extract_year_from_filename,
     normalize_expense_amount,
     parse_brazilian_amount,
-    validate_date,
+    validate_date_with_statement_context,
     validate_day_month,
 )
 
@@ -79,6 +80,7 @@ class SantanderParser(BaseParser):
         try:
             with pdfplumber.open(file_path, password=password) as pdf:
                 year = extract_year_from_filename(path.name)
+                statement_month = extract_month_from_filename(path.name) or 1
 
                 for page in pdf.pages:
                     text = page.extract_text() or ""
@@ -135,7 +137,11 @@ class SantanderParser(BaseParser):
                                 continue
                             seen.add(key)
 
-                            tx_date = validate_date(year, month, day)
+                            # Use statement-context-aware date validation to handle
+                            # cross-year transactions (e.g., Dec transactions in Jan statement)
+                            tx_date = validate_date_with_statement_context(
+                                year, statement_month, month, day
+                            )
                             if not tx_date:
                                 continue
 
@@ -209,7 +215,10 @@ class SantanderParser(BaseParser):
                             continue
                         seen.add(key)
 
-                        tx_date = validate_date(year, month, day)
+                        # Use statement-context-aware date validation
+                        tx_date = validate_date_with_statement_context(
+                            year, statement_month, month, day
+                        )
                         if not tx_date:
                             continue
 

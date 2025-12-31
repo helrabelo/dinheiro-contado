@@ -111,6 +111,32 @@ USE_MOCK_PARSER="false"  # "true" to test without Python service
 ## Git Remote
 `git@github.com:helrabelo/dinheiro-contado.git`
 
-## Recent Fixes (2025-12-29)
+## Recent Fixes (2025-12-31)
+
+### Cross-Year Transaction Date Bug Fix
+**Problem:** Transactions from December in January statements (e.g., `fatura-2025-01-btg.pdf` with "28 DEZ" transaction) were being parsed with wrong year (2025-12-28 instead of 2024-12-28).
+
+**Solution:** Added `validate_date_with_statement_context()` function in Python parser that adjusts year based on statement month context:
+- January statement + December transaction → previous year
+- December statement + January transaction → next year
+
+**Affected parsers:** Nubank, BTG, Santander, MercadoPago (Inter already had year in transaction lines)
+
+**Data Migration Note:** Existing transactions with incorrect dates need to be re-imported:
+1. Delete the affected statement from the app
+2. Re-upload the PDF file
+3. Transactions will be parsed with correct dates
+
+### 2025-12-29
 - Fixed Decimal serialization error when passing Prisma data to client components
 - Fixed date hydration mismatch by using UTC-safe date formatting
+
+## New Features (2025-12-31)
+
+### Interactive Spending Calendar
+New calendar component at `/dashboard` (Calendario Interativo section):
+- **Week View:** 7-day horizontal view with daily spending totals
+- **Month View:** Traditional calendar grid with spending amounts per day
+- **Year View:** 12-month overview with monthly totals and bar charts
+- Click any day to see details and navigate to transactions
+- Integrates with privacy mode

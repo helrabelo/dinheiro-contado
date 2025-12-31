@@ -17,10 +17,11 @@ import pdfplumber
 from .base import BaseParser, ParseResult, Transaction
 from ..utils import (
     MONTH_MAP_UPPER,
+    extract_month_from_filename,
     extract_year_from_filename,
     normalize_expense_amount,
     parse_brazilian_amount,
-    validate_date,
+    validate_date_with_statement_context,
 )
 
 # Pre-compiled regex patterns for transaction matching
@@ -64,6 +65,7 @@ class NubankParser(BaseParser):
         try:
             with pdfplumber.open(file_path, password=password) as pdf:
                 year = extract_year_from_filename(path.name)
+                statement_month = extract_month_from_filename(path.name) or 1
 
                 if not pdf.pages:
                     return self._create_error_result("Empty PDF")
@@ -154,7 +156,11 @@ class NubankParser(BaseParser):
                         if not month:
                             continue
 
-                        tx_date = validate_date(year, month, day)
+                        # Use statement-context-aware date validation to handle
+                        # cross-year transactions (e.g., Dec transactions in Jan statement)
+                        tx_date = validate_date_with_statement_context(
+                            year, statement_month, month, day
+                        )
                         if not tx_date:
                             continue
 

@@ -15,6 +15,7 @@ from .parsing_utils import (
     parse_brazilian_amount,
     parse_month,
     validate_date,
+    validate_date_with_statement_context,
     validate_day_month,
 )
 
@@ -31,5 +32,6 @@ __all__ = [
     "parse_brazilian_amount",
     "parse_month",
     "validate_date",
+    "validate_date_with_statement_context",
     "validate_day_month",
 ]

@@ -20,6 +20,7 @@ from ..utils import (
     normalize_expense_amount,
     parse_brazilian_amount,
     validate_date,
+    validate_date_with_statement_context,
 )
 
 # Pre-compiled regex patterns
@@ -134,7 +135,11 @@ class BTGParser(BaseParser):
                             if not month:
                                 continue
 
-                            tx_date = validate_date(year, month, day)
+                            # Use statement-context-aware date validation to handle
+                            # cross-year transactions (e.g., Dec transactions in Jan statement)
+                            tx_date = validate_date_with_statement_context(
+                                year, tx_month, month, day
+                            )
                             if not tx_date:
                                 continue
 

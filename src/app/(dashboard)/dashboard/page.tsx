@@ -6,6 +6,7 @@ import { SpendingByCategoryChart } from "@/components/dashboard/spending-by-cate
 import { SpendingOverTimeChart } from "@/components/dashboard/spending-over-time-chart";
 import { TopSpendingAnalysis } from "@/components/dashboard/top-spending-analysis";
 import { SpendingHeatmap } from "@/components/dashboard/spending-heatmap";
+import { SpendingCalendar } from "@/components/dashboard/spending-calendar";
 import { EnhancedSummaryCards } from "@/components/dashboard/enhanced-summary-cards";
 import { DashboardSection } from "@/components/dashboard/dashboard-section";
 import { UploadButton } from "@/components/dashboard/upload-button";
@@ -195,8 +196,12 @@ export default async function DashboardPage() {
             <TopSpendingAnalysis />
           </DashboardSection>
 
-          <DashboardSection id="heatmap" title="Calendario de Gastos" icon="📅" defaultCollapsed>
+          <DashboardSection id="heatmap" title="Mapa de Gastos" icon="📅" defaultCollapsed>
             <SpendingHeatmap />
+          </DashboardSection>
+
+          <DashboardSection id="calendar" title="Calendario Interativo" icon="📆" defaultCollapsed>
+            <SpendingCalendar />
           </DashboardSection>
         </>
       )}
